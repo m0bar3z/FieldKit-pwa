@@ -1,0 +1,3 @@
+{
+  "*.{js,jsx,cjs,mjs,ts,tsx,cts,mts,json,jsonc,css}": "biome check --write --error-on-warnings --no-errors-on-unmatched --files-ignore-unknown=true"
+}

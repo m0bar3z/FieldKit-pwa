@@ -13,7 +13,10 @@
     "lint:ci": "biome ci --error-on-warnings .",
     "format:check": "biome format .",
     "typecheck": "next typegen && tsc --noEmit",
-    "check": "pnpm lint && pnpm typecheck"
+    "check": "pnpm lint && pnpm typecheck",
+    "prepare": "node .husky/install.mjs",
+    "branch:check": "node scripts/check-branch.mjs",
+    "test:tooling": "node --test scripts/git-workflow.test.mjs"
   },
   "dependencies": {
     "next": "16.3.7",
@@ -22,11 +25,18 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.2",
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "husky": "9.1.7",
+    "lint-staged": "16.1.6",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }
