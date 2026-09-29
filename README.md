@@ -21,6 +21,28 @@ Use `pnpm add <package>` for dependencies and `pnpm add -D <package>` for develo
 
 Commit `pnpm-lock.yaml` when dependencies change.
 
+## Code quality and VS Code
+
+[Biome](https://biomejs.dev/) handles linting, formatting, and import organization using the version pinned in `package.json`. Install the recommended **Biome** extension (`biomejs.biome`) when VS Code prompts you, then open this repository as a workspace.
+
+Saving with Ctrl+S / Cmd+S formats JavaScript, TypeScript, JSX, TSX, JSON, JSONC, and CSS, applies safe lint fixes, and organizes imports. Remaining lint errors appear in the Problems panel. Save actions use `explicit`, so automatic saves do not trigger the lint fixes or import organization. Files still need to be saved manually for those actions.
+
+The configuration uses Biome's recommended rules plus the Next.js and React domains, including accessibility checks. Unused imports, variables and parameters, explicit `any`, non-null assertions, incorrect hook dependencies, array-index keys, async client components, and plain `<img>` elements are errors. Use `_`-prefixed parameters when an unused parameter is required by an API. `console.warn` and `console.error` are allowed; other console calls and `debugger` are errors.
+
+Formatting uses two spaces, double quotes, semicolons, trailing commas, LF line endings, and an 80-column target. Tailwind CSS directives are supported. Generated files, dependencies, build output, and coverage are excluded. Experimental nursery rules are not enabled by default.
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm lint` | Check lint rules, formatting, and import organization; fail on warnings too. |
+| `pnpm lint:fix` | Apply safe fixes, formatting, and import organization; report anything remaining. |
+| `pnpm lint:ci` | Run the same checks in CI without writing files. |
+| `pnpm format` | Format supported files. |
+| `pnpm format:check` | Check formatting without writing files. |
+| `pnpm typecheck` | Generate Next.js route types, then run TypeScript without emitting files. |
+| `pnpm check` | Run lint, formatting, import, and TypeScript checks. |
+
+Automatic fixes are limited to Biome's safe fixes. Review other suggestions individually through Quick Fix; no unsafe fixes run on save. Biome is not a replacement for the TypeScript compiler or every rule in Next.js's ESLint plugin. Run `pnpm check` before committing: Next.js builds do not run linting automatically.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

@@ -7,8 +7,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "biome check",
-    "format": "biome format --write"
+    "lint": "biome check --error-on-warnings .",
+    "format": "biome format --write .",
+    "lint:fix": "biome check --write --error-on-warnings .",
+    "lint:ci": "biome ci --error-on-warnings .",
+    "format:check": "biome format .",
+    "typecheck": "next typegen && tsc --noEmit",
+    "check": "pnpm lint && pnpm typecheck"
   },
   "dependencies": {
     "next": "16.3.7",
