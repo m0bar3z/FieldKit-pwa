@@ -21,6 +21,23 @@ Use `pnpm add <package>` for dependencies and `pnpm add -D <package>` for develo
 
 Commit `pnpm-lock.yaml` when dependencies change.
 
+## Next.js and TypeScript defaults
+
+[Typed routes](https://nextjs.org/docs/app/api-reference/config/next-config-js/typedRoutes) are enabled. TypeScript checks internal `next/link` destinations and App Router navigation methods against the generated routes. Run `pnpm dev` or `pnpm typecheck` to refresh route definitions after adding routes. Use the `Route` type from `next` for reusable navigation data instead of broad `string` types.
+
+[Cache Components](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) are enabled and require the Node.js runtime. Next.js can prerender a static shell and stream dynamic content. Cache reusable data or server components explicitly with `"use cache"` and configure its lifetime with `cacheLife`; place uncached/request-time content behind a suitable `Suspense` boundary. Read request data such as `cookies()` and `headers()` outside shared cache scopes. For new routes, use these APIs instead of the incompatible `dynamic`, `revalidate`, or `fetchCache` route-segment exports. The static starter page needs no additional caching directives.
+
+The TypeScript configuration retains Next.js's strict mode, bundler resolution, generated type includes, incremental checking, and framework plugin. It also enables:
+
+| Setting | Purpose |
+| --- | --- |
+| `noUncheckedIndexedAccess` | Treat unchecked array elements and dictionary lookups as possibly `undefined`. |
+| `exactOptionalPropertyTypes` | Distinguish an omitted property from an explicitly assigned `undefined`; include `undefined` in its type when intended. |
+| `noImplicitOverride` | Require `override` when replacing an inherited class member. |
+| `forceConsistentCasingInFileNames` | Catch inconsistent import filename casing across operating systems. |
+
+VS Code also recommends [Tailwind CSS IntelliSense](https://github.com/tailwindlabs/tailwindcss-intellisense) (`bradlc.vscode-tailwindcss`) for class completion, hover previews, and Tailwind diagnostics. Install it from the workspace's recommended extensions; it detects the existing Tailwind v4 CSS entrypoint.
+
 ## Code quality and VS Code
 
 [Biome](https://biomejs.dev/) handles linting, formatting, and import organization using the version pinned in `package.json`. Install the recommended **Biome** extension (`biomejs.biome`) when VS Code prompts you, then open this repository as a workspace.
