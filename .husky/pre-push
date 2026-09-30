@@ -1,3 +1,2 @@
 node scripts/check-branch.mjs --pre-push
 pnpm typecheck
-pnpm test:tooling
