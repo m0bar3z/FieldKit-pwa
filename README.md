@@ -51,7 +51,7 @@ Automatic fixes are limited to Biome's safe fixes. Review other suggestions indi
 | --- | --- |
 | `pre-commit` | Run lint-staged with Biome on staged JS, TS, JSON, JSONC, and CSS files. Apply safe fixes and block remaining errors or warnings. |
 | `commit-msg` | Validate the commit message with commitlint. |
-| `pre-push` | Validate all source and destination branch refs being pushed, then run TypeScript and Git workflow tests. Tags and branch deletions are exempt from naming validation. |
+| `pre-push` | Validate all source and destination branch refs being pushed, then run TypeScript checks. Tags and branch deletions are exempt from naming validation. |
 
 lint-staged preserves unstaged changes in partially staged files and stages its fixes automatically. It passes explicit filenames to Biome; it does not call the whole-project `lint:fix` script. The pinned lint-staged 16.1.6 supports Node 22.12.0; newer major versions require a newer Node patch release.
 
@@ -73,6 +73,8 @@ pnpm branch:check                       # Check the current branch
 pnpm branch:check feat/email-login      # Check an explicit name
 pnpm test:tooling                       # Test commit and branch validation
 ```
+
+The push hook checks only the branch refs in the actual push and the application’s TypeScript types. Run `pnpm test:tooling` when changing the Git hooks or validation rules; the validator’s example cases do not run on every push.
 
 The CI workflow runs on pull requests (including title edits), pushes to `main`, and manual dispatch. Its **Quality** job validates the branch and PR title, checks lint/formatting/imports and TypeScript, runs Git workflow tests, and builds the app. PR titles use the same rules as commit messages. CI validates PR titles rather than every intermediate commit because this repository uses squash merging.
 
