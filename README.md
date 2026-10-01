@@ -42,6 +42,8 @@ VS Code also recommends [Tailwind CSS IntelliSense](https://github.com/tailwindl
 
 VS Code is configured to offer the workspace TypeScript SDK from `node_modules/typescript/lib`. After `pnpm install`, open a `.ts` or `.tsx` file and accept **Use Workspace Version** when prompted. You can also run **TypeScript: Select TypeScript Version → Use Workspace Version** from the Command Palette. This aligns editor diagnostics with the installed compiler and enables the Next.js TypeScript plugin. See the [VS Code TypeScript guidance](https://code.visualstudio.com/docs/typescript/typescript-transpiling#_using-newer-typescript-versions).
 
+The root `.editorconfig` defines UTF-8, two-space indentation, LF line endings, a final newline, and trailing-whitespace cleanup. Markdown preserves trailing spaces for hard line breaks. These defaults match Biome and apply in editors with EditorConfig support; install the recommended **EditorConfig for VS Code** extension (`EditorConfig.EditorConfig`) to apply them in VS Code. Biome continues to handle formatting and import organization.
+
 [Biome](https://biomejs.dev/) handles linting, formatting, and import organization using the version pinned in `package.json`. Install the recommended **Biome** extension (`biomejs.biome`) when VS Code prompts you, then open this repository as a workspace.
 
 Saving with Ctrl+S / Cmd+S formats JavaScript, TypeScript, JSX, TSX, JSON, JSONC, and CSS, applies safe lint fixes, and organizes imports. Remaining lint errors appear in the Problems panel. Save actions use `explicit`, so automatic saves do not trigger the lint fixes or import organization. Files still need to be saved manually for those actions.
