@@ -11,14 +11,6 @@ function PushNotificationManager() {
   );
   const [message, setMessage] = useState("");
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <!>
-  useEffect(() => {
-    if ("serviceWorker" in navigator && "PushManager" in window) {
-      setIsSupported(true);
-      registerServiceWorker();
-    }
-  }, []);
-
   async function registerServiceWorker() {
     const registration = await navigator.serviceWorker.register(
       new URL("../lib/service-worker.js", import.meta.url),
@@ -30,6 +22,14 @@ function PushNotificationManager() {
     const sub = await registration.pushManager.getSubscription();
     setSubscription(sub);
   }
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: <!>
+  useEffect(() => {
+    if ("serviceWorker" in navigator && "PushManager" in window) {
+      setIsSupported(true);
+      registerServiceWorker();
+    }
+  }, []);
 
   async function subscribeToPush() {
     const registration = await navigator.serviceWorker.ready;
