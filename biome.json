@@ -34,6 +34,9 @@
     "enabled": true,
     "rules": {
       "recommended": true,
+      "a11y": {
+        "useButtonType": "off"
+      },
       "correctness": {
         "noNextAsyncClientComponent": "error",
         "noUnusedImports": "error",
