@@ -1,134 +1,168 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FieldKit
 
-## Getting Started
+FieldKit is a learning project for building and showcasing Progressive Web App
+(PWA) capabilities with Next.js. The goal is a simple offline-first **Field Notes
+& Tasks** app: a lightweight combination of notes and a todo list, useful even
+with an unreliable connection.
 
-Use Node.js 22.12.0 or newer. This project uses pnpm 10.15.0, pinned in `package.json`. If pnpm is not installed, install the pinned version with `npm install --global pnpm@10.15.0`.
+The product stays small so the focus can be on browser APIs, local data storage,
+service workers, and the experience of using a web app like an installed app.
 
-Install dependencies and run the development server:
+## Current progress
+
+FieldKit is in early development. The current home page contains the push
+notification controls and installation instructions; the notes and tasks app
+has not been built yet.
+
+| Capability | Status |
+| --- | --- |
+| Web app manifest | Implemented, with standalone display and 192px / 512px icons |
+| Push notification UI | Connected to the home page: subscribe, unsubscribe, and send a test message |
+| Push delivery | Prototype: Server Actions and service worker event handlers are present; device testing remains |
+| Installation guidance | iOS instructions and standalone-mode detection are present; the installation button has no handler |
+| Notes and tasks | Planned |
+| Offline storage and cached app shell | Planned; the current service worker only handles notifications |
+| Background sync | Planned |
+
+### Prototype limitations
+
+- Push subscriptions are held in one server-side variable. They are lost on
+  server restarts and are not shared reliably across serverless instances or
+  users. Persistent storage is needed before reliable Vercel testing.
+- The VAPID contact in `src/actions.ts` still needs a real `mailto:` address.
+- Notification payloads reference `/icon.png` and `/badge.png`, which are not
+  supplied yet. The manifest icons are separate assets.
+- End-to-end push delivery, installation, and cross-device behavior still need
+  verification. The app does not currently work offline.
+
+## Learning roadmap
+
+- [ ] Create, edit, and delete field notes.
+- [ ] Create tasks and mark them complete.
+- [ ] Persist notes and tasks locally using IndexedDB.
+- [ ] Cache the app shell and support opening the app offline.
+- [ ] Handle service worker updates and cache versioning.
+- [ ] Store push subscriptions persistently and verify notification delivery.
+- [ ] Explore background sync for changes made offline.
+- [ ] Test installation and behavior on mobile and desktop browsers.
+
+These are learning goals, not claims of existing functionality. Background sync
+and other optional capabilities should have fallbacks where unsupported.
+
+## Tech stack
+
+- Next.js 16.3.8 with the App Router and Server Actions
+- React 19 and TypeScript
+- Tailwind CSS 4
+- Web Push API and `web-push`
+- Biome for linting and formatting
+- pnpm, Husky, lint-staged, and commitlint
+
+## Run locally
+
+Use Node.js **22.12.0 or newer** and **pnpm 10.15.0**, the version pinned in
+`package.json`.
+
+Install dependencies and generate VAPID keys for the push prototype:
 
 ```bash
 pnpm install
+pnpm exec web-push generate-vapid-keys
+```
+
+Create `.env.local` in the project root using the generated values:
+
+```dotenv
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_public_key_here
+VAPID_PRIVATE_KEY=your_private_key_here
+```
+
+Keep the private key server-side. Environment files are ignored by Git.
+
+Start the development server:
+
+```bash
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [localhost:3000](http://localhost:3000). Before sending notifications,
+replace the placeholder VAPID contact in `src/actions.ts` with a real
+`mailto:you@example.com` address, without angle brackets.
 
-You can start editing the page by modifying `src/app/page.tsx`. The page auto-updates as you edit the file.
+## Test on a phone
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open the app through a trusted HTTPS URL, such as an HTTPS tunnel or deployment.
+An HTTP LAN address such as `http://192.168.x.x:3000` is not a secure origin for
+push notification testing.
 
-Use `pnpm add <package>` for dependencies and `pnpm add -D <package>` for development dependencies. Run `pnpm lint` to check code and `pnpm build` to create a production build. In CI, use `pnpm install --frozen-lockfile`.
+Next.js also supports HTTPS during development:
 
-Commit `pnpm-lock.yaml` when dependencies change.
+```bash
+pnpm dev --experimental-https
+```
 
-## Next.js and TypeScript defaults
+For LAN access, the certificate must cover the address being used and be trusted
+by the phone. Simply bypassing a certificate warning is not sufficient.
 
-[Typed routes](https://nextjs.org/docs/app/api-reference/config/next-config-js/typedRoutes) are enabled. TypeScript checks internal `next/link` destinations and App Router navigation methods against the generated routes. Run `pnpm dev` or `pnpm typecheck` to refresh route definitions after adding routes. Use the `Route` type from `next` for reusable navigation data instead of broad `string` types.
+Once the push prototype limitations are resolved, tap **Subscribe**, allow
+notifications, enter a message, and tap **Send Test**. Check both the site's
+notification permission and the browser's notification settings on the phone.
 
-[Cache Components](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) are enabled and require the Node.js runtime. Next.js can prerender a static shell and stream dynamic content. Cache reusable data or server components explicitly with `"use cache"` and configure its lifetime with `cacheLife`; place uncached/request-time content behind a suitable `Suspense` boundary. Read request data such as `cookies()` and `headers()` outside shared cache scopes. For new routes, use these APIs instead of the incompatible `dynamic`, `revalidate`, or `fetchCache` route-segment exports. The static starter page needs no additional caching directives.
+When deploying to Vercel, configure both VAPID variables for the deployment
+environment before building. Local `.env.local` values do not transfer
+automatically. Use persistent subscription storage rather than the current
+in-memory variable.
 
-The TypeScript configuration retains Next.js's strict mode, bundler resolution, generated type includes, incremental checking, and framework plugin. It also enables:
-
-| Setting | Purpose |
-| --- | --- |
-| `noUncheckedIndexedAccess` | Treat unchecked array elements and dictionary lookups as possibly `undefined`. |
-| `exactOptionalPropertyTypes` | Distinguish an omitted property from an explicitly assigned `undefined`; include `undefined` in its type when intended. |
-| `noImplicitOverride` | Require `override` when replacing an inherited class member. |
-| `forceConsistentCasingInFileNames` | Catch inconsistent import filename casing across operating systems. |
-
-VS Code also recommends [Tailwind CSS IntelliSense](https://github.com/tailwindlabs/tailwindcss-intellisense) (`bradlc.vscode-tailwindcss`) for class completion, hover previews, and Tailwind diagnostics. Install it from the workspace's recommended extensions; it detects the existing Tailwind v4 CSS entrypoint.
-
-## Code quality and VS Code
-
-VS Code is configured to offer the workspace TypeScript SDK from `node_modules/typescript/lib`. After `pnpm install`, open a `.ts` or `.tsx` file and accept **Use Workspace Version** when prompted. You can also run **TypeScript: Select TypeScript Version → Use Workspace Version** from the Command Palette. This aligns editor diagnostics with the installed compiler and enables the Next.js TypeScript plugin. See the [VS Code TypeScript guidance](https://code.visualstudio.com/docs/typescript/typescript-transpiling#_using-newer-typescript-versions).
-
-The root `.editorconfig` defines UTF-8, two-space indentation, LF line endings, a final newline, and trailing-whitespace cleanup. Markdown preserves trailing spaces for hard line breaks. These defaults match Biome and apply in editors with EditorConfig support; install the recommended **EditorConfig for VS Code** extension (`EditorConfig.EditorConfig`) to apply them in VS Code. Biome continues to handle formatting and import organization.
-
-[Biome](https://biomejs.dev/) handles linting, formatting, and import organization using the version pinned in `package.json`. Install the recommended **Biome** extension (`biomejs.biome`) when VS Code prompts you, then open this repository as a workspace.
-
-Saving with Ctrl+S / Cmd+S formats JavaScript, TypeScript, JSX, TSX, JSON, JSONC, and CSS, applies safe lint fixes, and organizes imports. Remaining lint errors appear in the Problems panel. Save actions use `explicit`, so automatic saves do not trigger the lint fixes or import organization. Files still need to be saved manually for those actions.
-
-The configuration uses Biome's recommended rules plus the Next.js and React domains, including accessibility checks. Unused imports, variables and parameters, explicit `any`, non-null assertions, incorrect hook dependencies, array-index keys, async client components, and plain `<img>` elements are errors. Use `_`-prefixed parameters when an unused parameter is required by an API. `console.warn` and `console.error` are allowed; other console calls and `debugger` are errors.
-
-Formatting uses two spaces, double quotes, semicolons, trailing commas, LF line endings, and an 80-column target. Tailwind CSS directives are supported. Generated files, dependencies, build output, and coverage are excluded. Experimental nursery rules are not enabled by default.
+## Development commands
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm lint` | Check lint rules, formatting, and import organization; fail on warnings too. |
-| `pnpm lint:fix` | Apply safe fixes, formatting, and import organization; report anything remaining. |
-| `pnpm lint:ci` | Run the same checks in CI without writing files. |
-| `pnpm format` | Format supported files. |
-| `pnpm format:check` | Check formatting without writing files. |
-| `pnpm typecheck` | Generate Next.js route types, then run TypeScript without emitting files. |
-| `pnpm check` | Run lint, formatting, import, and TypeScript checks. |
+| `pnpm dev` | Start the development server |
+| `pnpm build` | Create a production build |
+| `pnpm start` | Serve the production build |
+| `pnpm lint` | Check linting, formatting, and imports |
+| `pnpm lint:fix` | Apply safe Biome fixes |
+| `pnpm format` | Format supported files |
+| `pnpm typecheck` | Generate route types and check TypeScript |
+| `pnpm check` | Run lint and TypeScript checks |
+| `pnpm test:tooling` | Test Git workflow tooling, not app behavior |
 
-Automatic fixes are limited to Biome's safe fixes. Review other suggestions individually through Quick Fix; no unsafe fixes run on save. Biome is not a replacement for the TypeScript compiler or every rule in Next.js's ESLint plugin. Run `pnpm check` before committing: Next.js builds do not run linting automatically.
+Use `pnpm add` for dependencies and commit the lockfile when dependencies change.
+The project enables strict TypeScript, typed routes, and Cache Components.
+VS Code recommendations and settings are provided for TypeScript, Tailwind CSS,
+Biome, and EditorConfig.
 
-## Git workflow
+Git hooks run Biome on staged files, validate Conventional Commits, and check
+branch names and TypeScript before pushes. Use branch names such as
+`feat/offline-notes` and commit messages such as `feat(notes): add local storage`.
+The `.github/` directory is currently ignored, so the local CI templates are not
+included in repository clones.
 
-`pnpm install` installs the repository's Husky hooks through `prepare`. Installation skips hooks in CI, production-only installs, and copies without Git metadata. After running `git init` in a downloaded template, run `pnpm prepare`.
-
-| Hook | Behavior |
-| --- | --- |
-| `pre-commit` | Run lint-staged with Biome on staged JS, TS, JSON, JSONC, and CSS files. Apply safe fixes and block remaining errors or warnings. |
-| `commit-msg` | Validate the commit message with commitlint. |
-| `pre-push` | Validate all source and destination branch refs being pushed, then run TypeScript checks. Tags and branch deletions are exempt from naming validation. |
-
-lint-staged preserves unstaged changes in partially staged files and stages its fixes automatically. It passes explicit filenames to Biome; it does not call the whole-project `lint:fix` script. The pinned lint-staged 16.1.6 supports Node 22.12.0; newer major versions require a newer Node patch release.
-
-Use Conventional Commits:
+## Project structure
 
 ```text
-feat(auth): add email login
-fix(ui): prevent navigation overflow
-chore(tooling): configure biome
-feat!: change configuration API
+src/
+  app/
+    page.tsx                     # Home page with PWA controls
+    layout.tsx                   # Root layout
+    manifest.ts                  # Web app manifest
+  components/
+    PushNotificationManager.tsx  # Subscription and test notification UI
+    InstallPrompt.tsx            # Installation guidance
+  lib/
+    service-worker.js            # Push and notification-click handlers
+  actions.ts                     # Push subscription and delivery prototype
+  utils.ts                       # VAPID public key conversion
+public/                          # Manifest icons and static assets
 ```
 
-Types are `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, and `revert`. Types must be lowercase. Scope is optional and unrestricted. The description must be nonempty with no trailing period, and the complete header must be at most 100 characters. Mark breaking changes with `!` or a `BREAKING CHANGE:` footer. `style` means code formatting. Automatic message exemptions are disabled, so PR titles such as “Merge pull request” cannot bypass validation.
+## References
 
-Use `<type>/<kebab-case-description>` for branches, such as `feat/email-login`, `fix/123-mobile-menu`, or `chore/biome-setup`. The type list is shared with commitlint in `scripts/git-conventions.mjs`. Issue numbers are optional. `main`, `renovate/*`, and `dependabot/*` are exempt from the naming pattern but must still be valid Git refs.
+- [Next.js PWA guide](https://nextjs.org/docs/app/guides/progressive-web-apps)
+- [Chrome PWA install requirements](https://web.dev/articles/install-criteria)
+- [Next.js HTTPS development options](https://nextjs.org/docs/app/api-reference/cli/next#using-https-during-development)
+- [Vercel environment variables](https://vercel.com/docs/environment-variables)
 
-```bash
-pnpm branch:check                       # Check the current branch
-pnpm branch:check feat/email-login      # Check an explicit name
-pnpm test:tooling                       # Test commit and branch validation
-```
+## License
 
-The push hook checks only the branch refs in the actual push and the application’s TypeScript types. Run `pnpm test:tooling` when changing the Git hooks or validation rules; the validator’s example cases do not run on every push.
-
-The CI workflow runs on pull requests (including title edits), pushes to `main`, and manual dispatch. Its **Quality** job validates the branch and PR title, checks lint/formatting/imports and TypeScript, runs Git workflow tests, and builds the app. PR titles use the same rules as commit messages. CI validates PR titles rather than every intermediate commit because this repository uses squash merging.
-
-The workflow runs untrusted PR code with read-only permissions, no persisted checkout credentials, and no repository secrets. It installs the pnpm version from `package.json` with the frozen lockfile. Build steps using `next/font/google` require access to Google's font servers.
-
-### GitHub repository settings
-
-The `.github/` directory is currently ignored by Git. Its workflow and settings files exist only locally and are not included in these commits or template clones. CI will run only after the workflow is explicitly added to a repository.
-
-`.github/repository-settings.json` describes squash-only merging with the PR title as the commit title and PR body as the commit body. `.github/main-protection.json` describes protection for `main`: require the **Quality** check and an up-to-date branch, require a PR with zero reviewer approvals, enforce the rules for admins, and block force pushes and deletion.
-
-These JSON files are templates, not settings GitHub applies automatically. After pushing the workflow and completing its first successful run, apply settings to a new template-derived repository with:
-
-```bash
-gh api --method PATCH 'repos/{owner}/{repo}' --input .github/repository-settings.json
-gh api --method PUT 'repos/{owner}/{repo}/branches/main/protection' --input .github/main-protection.json
-```
-
-GitHub currently returns HTTP 403 for branch protection on this private starter repository because the account needs GitHub Pro or a supported organization plan. CI and local hooks still work, but passing checks cannot be required by GitHub until that restriction is resolved. Repository visibility is unchanged.
-
-Local hooks can be bypassed; required CI checks enforce the merge policy when protection is available. Repository settings are configured separately for each project created from this starter. Git GUI users using nvm may need to initialize nvm in `~/.config/husky/init.sh` so hooks can find Node and pnpm.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Licensed under the [MIT License](LICENSE).
