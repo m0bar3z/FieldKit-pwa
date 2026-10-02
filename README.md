@@ -29,7 +29,7 @@ has not been built yet.
 - Push subscriptions are held in one server-side variable. They are lost on
   server restarts and are not shared reliably across serverless instances or
   users. Persistent storage is needed before reliable Vercel testing.
-- The VAPID contact in `src/actions.ts` still needs a real `mailto:` address.
+- The `VAPID_SUBJECT` environment variable needs a real `mailto:` contact address.
 - Notification payloads reference `/icon.png` and `/badge.png`, which are not
   supplied yet. The manifest icons are separate assets.
 - End-to-end push delivery, installation, and cross-device behavior still need
@@ -73,11 +73,14 @@ pnpm exec web-push generate-vapid-keys
 Create `.env.local` in the project root using the generated values:
 
 ```dotenv
+VAPID_SUBJECT=mailto:you@example.com
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_public_key_here
 VAPID_PRIVATE_KEY=your_private_key_here
 ```
 
-Keep the private key server-side. Environment files are ignored by Git.
+Set `VAPID_SUBJECT` to your real contact email, including the `mailto:` prefix
+and without angle brackets. It is a server-only setting. Keep the private key
+server-side too. Environment files are ignored by Git.
 
 Start the development server:
 
@@ -85,9 +88,7 @@ Start the development server:
 pnpm dev
 ```
 
-Open [localhost:3000](http://localhost:3000). Before sending notifications,
-replace the placeholder VAPID contact in `src/actions.ts` with a real
-`mailto:you@example.com` address, without angle brackets.
+Open [localhost:3000](http://localhost:3000).
 
 ## Test on a phone
 
@@ -108,7 +109,7 @@ Once the push prototype limitations are resolved, tap **Subscribe**, allow
 notifications, enter a message, and tap **Send Test**. Check both the site's
 notification permission and the browser's notification settings on the phone.
 
-When deploying to Vercel, configure both VAPID variables for the deployment
+When deploying to Vercel, configure all three VAPID variables for the deployment
 environment before building. Local `.env.local` values do not transfer
 automatically. Use persistent subscription storage rather than the current
 in-memory variable.
