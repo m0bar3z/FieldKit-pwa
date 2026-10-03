@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="360" viewBox="0 0 720 360">
+  <rect width="720" height="360" fill="#f5f5f2"/>
+  <g fill="#e7e7e1"><rect x="32" y="28" width="150" height="108" rx="14"/><rect x="226" y="28" width="184" height="108" rx="14"/><rect x="455" y="28" width="229" height="108" rx="14"/><rect x="32" y="180" width="150" height="145" rx="14"/><rect x="226" y="180" width="184" height="145" rx="14"/></g>
+  <rect x="455" y="180" width="229" height="145" rx="14" fill="#dadfd4"/>
+  <g stroke="#fff" stroke-width="20"><path d="M204 0v360M432 0v360M0 158h720"/></g>
+  <path d="M120 85h84v73h130v90h218" fill="none" stroke="#777c70" stroke-width="3" stroke-dasharray="7 7" stroke-linecap="round"/>
+  <g fill="#292b27"><circle cx="120" cy="85" r="8"/><circle cx="334" cy="248" r="8"/><circle cx="552" cy="248" r="8"/></g>
+  <g font-family="Arial,sans-serif" font-size="14" fill="#44483f"><text x="78" y="115">Bookshop</text><text x="292" y="279">Coffee stop</text><text x="520" y="279">The park</text></g>
+  <text x="475" y="78" font-family="Arial,sans-serif" font-size="11" letter-spacing="3" fill="#797d73">A LITTLE DETOUR</text>
+  <text x="475" y="104" font-family="Arial,sans-serif" font-size="18" fill="#292b27">Take the slow way.</text>
+</svg>
