@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791218096375,
+      "tag": "0000_existing_users",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791218261828,
+      "tag": "0001_product_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791218263200,
+      "tag": "0002_sync_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791219500713,
+      "tag": "0003_owner_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791219501912,
+      "tag": "0004_access_grants",
+      "breakpoints": true
+    }
+  ]
+}
