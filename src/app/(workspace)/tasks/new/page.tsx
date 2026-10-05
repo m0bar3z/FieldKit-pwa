@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { withAuthentication } from "@/components/auth/authenticated-page";
 import { NewItemEditor } from "@/components/fieldkit/editors";
 import { PageHeading } from "@/components/fieldkit/page-heading";
 
 export const metadata: Metadata = { title: "New task" };
 
-export default function NewTaskPage() {
+async function NewTaskPage() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-7">
       <PageHeading
@@ -17,3 +18,5 @@ export default function NewTaskPage() {
     </div>
   );
 }
+
+export default withAuthentication(NewTaskPage);

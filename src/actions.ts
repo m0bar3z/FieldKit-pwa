@@ -4,6 +4,7 @@
 import webpush, {
   type PushSubscription as WebPushSubscription,
 } from "web-push";
+import { requireUser } from "@/lib/auth";
 
 webpush.setVapidDetails(
   process.env.VAPID_SUBJECT!,
@@ -11,23 +12,58 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY!,
 );
 
-let subscription: WebPushSubscription | null = null;
+// Keep this prototype in memory, but isolate subscriptions by verified identity.
+const subscriptions = new Map<string, WebPushSubscription>();
 
 export async function subscribeUser(sub: WebPushSubscription) {
-  subscription = sub;
+  const user = await requireUser();
+  if (
+    !sub ||
+    typeof sub.endpoint !== "string" ||
+    !sub.keys ||
+    typeof sub.keys.auth !== "string" ||
+    typeof sub.keys.p256dh !== "string"
+  ) {
+    throw new Error("Invalid push subscription");
+  }
+  const endpoint = new URL(sub.endpoint);
+  // Allow established browser push services, not arbitrary URLs supplied to the server.
+  const allowedHosts = [
+    "fcm.googleapis.com",
+    "updates.push.services.mozilla.com",
+    "web.push.apple.com",
+  ];
+  if (
+    endpoint.protocol !== "https:" ||
+    !allowedHosts.includes(endpoint.hostname) ||
+    endpoint.port ||
+    endpoint.username ||
+    endpoint.password
+  ) {
+    throw new Error("Unsupported push endpoint");
+  }
+  subscriptions.set(user.id, sub);
   // In a production environment, you would want to store the subscription in a database
   // For example: await db.subscriptions.create({ data: sub })
   return { success: true };
 }
 
 export async function unsubscribeUser() {
-  subscription = null;
+  const user = await requireUser();
+  subscriptions.delete(user.id);
   // In a production environment, you would want to remove the subscription from the database
   // For example: await db.subscriptions.delete({ where: { ... } })
   return { success: true };
 }
 
 export async function sendNotification(message: string) {
+  const user = await requireUser();
+  const subscription = subscriptions.get(user.id);
+  if (typeof message !== "string" || !message.trim() || message.length > 2000) {
+    throw new Error(
+      "Notification message must be between 1 and 2000 characters",
+    );
+  }
   if (!subscription) {
     throw new Error("No subscription available");
   }

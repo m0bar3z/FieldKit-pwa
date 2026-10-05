@@ -56,7 +56,13 @@ function Brand() {
   );
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  accountActions,
+}: {
+  children: ReactNode;
+  accountActions: ReactNode;
+}) {
   const pathname = usePathname();
   // Navigation state is UI-only; it is never stored in cookies or browser storage.
   const [menuOpen, setMenuOpen] = useState(false);
@@ -194,10 +200,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             My workspace
           </p>
           <div className="flex items-center gap-3">
-            <Badge variant="outline">Preview</Badge>
+            <Badge variant="outline" className="hidden sm:inline-flex">
+              Preview
+            </Badge>
             <span className="hidden text-xs text-muted-foreground sm:inline">
               Friday, October 2
             </span>
+            {accountActions}
           </div>
         </header>
         <main

@@ -7,6 +7,7 @@ import {
   PlusIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { withAuthentication } from "@/components/auth/authenticated-page";
 import { NoteCard, TaskList } from "@/components/fieldkit/content-cards";
 import { LinkButton } from "@/components/fieldkit/link-button";
 import { PageHeading } from "@/components/fieldkit/page-heading";
@@ -43,7 +44,7 @@ const taskSections = [
   },
 ] as const;
 
-export default function Home() {
+async function Home() {
   return (
     <>
       <PageHeading
@@ -188,3 +189,5 @@ export default function Home() {
     </>
   );
 }
+
+export default withAuthentication(Home);

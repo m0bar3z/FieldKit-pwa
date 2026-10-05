@@ -1,5 +1,6 @@
 import { BellIcon, CalendarDaysIcon, FolderIcon } from "lucide-react";
 import { notFound } from "next/navigation";
+import { withAuthentication } from "@/components/auth/authenticated-page";
 import { Attachments } from "@/components/fieldkit/attachments";
 import { DeleteDialog } from "@/components/fieldkit/delete-dialog";
 import { EditItemDialog } from "@/components/fieldkit/editors";
@@ -22,7 +23,7 @@ export function generateStaticParams() {
   return demoTasks.map(({ id }) => ({ id }));
 }
 
-export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
+async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
   const { id } = await params;
   // TODO(data): Load the task, its project, and attachments when data fetching is enabled.
   const task = demoTasks.find((item) => item.id === id);
@@ -135,3 +136,5 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
     </>
   );
 }
+
+export default withAuthentication(TaskPage);

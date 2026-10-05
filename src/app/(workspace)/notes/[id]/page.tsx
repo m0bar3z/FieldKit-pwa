@@ -1,5 +1,6 @@
 import { BookOpenIcon, FolderIcon } from "lucide-react";
 import { notFound } from "next/navigation";
+import { withAuthentication } from "@/components/auth/authenticated-page";
 import { Attachments } from "@/components/fieldkit/attachments";
 import { DeleteDialog } from "@/components/fieldkit/delete-dialog";
 import { EditItemDialog } from "@/components/fieldkit/editors";
@@ -20,7 +21,7 @@ export function generateStaticParams() {
   return demoNotes.map(({ id }) => ({ id }));
 }
 
-export default async function NotePage({ params }: PageProps<"/notes/[id]">) {
+async function NotePage({ params }: PageProps<"/notes/[id]">) {
   const { id } = await params;
   // TODO(data): Replace the static note lookup with real note and attachment data.
   const note = demoNotes.find((item) => item.id === id);
@@ -85,3 +86,5 @@ export default async function NotePage({ params }: PageProps<"/notes/[id]">) {
     </>
   );
 }
+
+export default withAuthentication(NotePage);

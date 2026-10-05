@@ -1,5 +1,6 @@
 import { BookOpenIcon, PlusIcon } from "lucide-react";
 import { notFound } from "next/navigation";
+import { withAuthentication } from "@/components/auth/authenticated-page";
 import { NoteCard, TaskList } from "@/components/fieldkit/content-cards";
 import { DeleteDialog } from "@/components/fieldkit/delete-dialog";
 import { EmptyItems } from "@/components/fieldkit/empty-items";
@@ -22,9 +23,7 @@ export function generateStaticParams() {
   return demoProjects.map(({ id }) => ({ id }));
 }
 
-export default async function ProjectPage({
-  params,
-}: PageProps<"/projects/[id]">) {
+async function ProjectPage({ params }: PageProps<"/projects/[id]">) {
   const { id } = await params;
   // Static fixture lookup only. TODO(data): Load this project and its related items.
   const project = demoProjects.find((item) => item.id === id);
@@ -119,3 +118,5 @@ export default async function ProjectPage({
     </>
   );
 }
+
+export default withAuthentication(ProjectPage);

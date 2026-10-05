@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { withAuthentication } from "@/components/auth/authenticated-page";
 import { ProjectCard } from "@/components/fieldkit/content-cards";
 import { EmptyItems } from "@/components/fieldkit/empty-items";
 import { PageHeading } from "@/components/fieldkit/page-heading";
@@ -8,7 +9,7 @@ import { demoProjects } from "@/lib/demo-content";
 
 export const metadata: Metadata = { title: "Projects" };
 
-export default function ProjectsPage() {
+async function ProjectsPage() {
   // TODO(data): Replace fixtures with the user's projects; handle loading and errors.
   return (
     <>
@@ -35,3 +36,5 @@ export default function ProjectsPage() {
     </>
   );
 }
+
+export default withAuthentication(ProjectsPage);
