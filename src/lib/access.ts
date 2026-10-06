@@ -7,7 +7,7 @@ import { users } from "./schema";
 
 type UserTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-// Future product operations must use this boundary rather than privileged db queries.
+// Product operations use this boundary rather than privileged db queries.
 // The caller supplies neither an owner ID nor a JWT; both come from verified cookies.
 export async function withUserDatabase<T>(
   operation: (transaction: UserTransaction, ownerId: number) => Promise<T>,
