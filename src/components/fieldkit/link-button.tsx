@@ -1,7 +1,7 @@
 import type { VariantProps } from "class-variance-authority";
 import type { Route } from "next";
-import Link from "next/link";
 import type { ReactNode } from "react";
+import { WorkspaceLink as Link } from "@/components/fieldkit/workspace-link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 

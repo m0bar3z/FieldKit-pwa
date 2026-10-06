@@ -2,8 +2,8 @@
 
 FieldKit uses Supabase email/password sign-in and server-managed, HTTP-only
 session cookies. Existing users can sign in at `/login` and sign out from the
-workspace header. Registration, password recovery, and product CRUD are separate
-features. Product pages still display sample content.
+workspace header. Registration and password recovery are separate features.
+Product pages read owned records and use authenticated actions for writes.
 
 ## Supabase setup
 

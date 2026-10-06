@@ -2,16 +2,16 @@ import {
   ArrowRightIcon,
   BookOpenIcon,
   CalendarDaysIcon,
-  CheckCheckIcon,
   Clock3Icon,
   PlusIcon,
 } from "lucide-react";
-import Link from "next/link";
 import { withAuthentication } from "@/components/auth/authenticated-page";
-import { NoteCard, TaskList } from "@/components/fieldkit/content-cards";
+import { NoteCard } from "@/components/fieldkit/content-cards";
+import { EmptyItems } from "@/components/fieldkit/empty-items";
 import { LinkButton } from "@/components/fieldkit/link-button";
 import { PageHeading } from "@/components/fieldkit/page-heading";
-import { Badge } from "@/components/ui/badge";
+import { TaskCollection } from "@/components/fieldkit/product-collections";
+import { WorkspaceLink as Link } from "@/components/fieldkit/workspace-link";
 import {
   Card,
   CardAction,
@@ -21,34 +21,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { demoNotes, demoProjects, demoTasks } from "@/lib/demo-content";
-
-const taskSections = [
-  {
-    group: "overdue",
-    label: "Needs a little attention",
-    caption: "Overdue",
-    icon: Clock3Icon,
-  },
-  {
-    group: "today",
-    label: "On your list today",
-    caption: "Today",
-    icon: CalendarDaysIcon,
-  },
-  {
-    group: "upcoming",
-    label: "A little further ahead",
-    caption: "Upcoming",
-    icon: CheckCheckIcon,
-  },
-] as const;
+import { getWorkspace } from "@/lib/product-queries";
 
 async function Home() {
+  const workspace = await getWorkspace();
   return (
     <>
       <PageHeading
-        eyebrow="Friday, October 2, 2026"
+        eyebrow={`Your workspace · ${workspace.timeZone}`}
         title="A little focus for today."
         description="Your tasks, notes, and plans. A little easier to keep together."
         actions={
@@ -64,24 +44,23 @@ async function Home() {
           </>
         }
       />
-      {/* TODO(product): Calculate summaries and day groups using actual tasks and the user's local date. */}
       <div className="grid gap-4 sm:grid-cols-3">
         {[
           {
             label: "Due today",
-            count: "02",
-            caption: "A couple of clear next steps",
+            count: workspace.counts.dueToday,
+            caption: "Open tasks due on your local date",
             icon: CalendarDaysIcon,
           },
           {
             label: "Overdue",
-            count: "01",
+            count: workspace.counts.overdue,
             caption: "Pick it up when you're ready",
             icon: Clock3Icon,
           },
           {
             label: "Active projects",
-            count: "03",
+            count: workspace.counts.activeProjects,
             caption: "Everything has a place",
             icon: BookOpenIcon,
           },
@@ -107,32 +86,7 @@ async function Home() {
           aria-label="Your task list"
           className="flex min-w-0 flex-col gap-5"
         >
-          {taskSections.map(({ group, label, caption, icon: Icon }) => {
-            const tasks = demoTasks.filter((task) => task.group === group);
-            return (
-              <Card key={group}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Icon className="size-4" />
-                    {label}
-                  </CardTitle>
-                  <CardDescription>{caption}</CardDescription>
-                  <CardAction>
-                    <Badge
-                      variant={
-                        group === "overdue" ? "destructive" : "secondary"
-                      }
-                    >
-                      {tasks.length}
-                    </Badge>
-                  </CardAction>
-                </CardHeader>
-                <CardContent>
-                  <TaskList tasks={tasks} />
-                </CardContent>
-              </Card>
-            );
-          })}
+          <TaskCollection tasks={workspace.tasks} />
         </section>
         <div className="flex min-w-0 flex-col gap-6">
           <Card>
@@ -143,7 +97,15 @@ async function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
-              {demoProjects.map((project) => (
+              {!workspace.projects.length && (
+                <EmptyItems
+                  kind="projects"
+                  title="Your first project"
+                  description="Create a home for your tasks and notes."
+                  action={{ href: "/projects", label: "Create a project" }}
+                />
+              )}
+              {workspace.projects.map((project) => (
                 <Link
                   key={project.id}
                   href={`/projects/${project.id}`}
@@ -179,13 +141,20 @@ async function Home() {
               </h2>
               <BookOpenIcon className="size-4 text-muted-foreground" />
             </div>
-            {demoNotes.map((note) => (
+            {!workspace.notes.length && (
+              <EmptyItems
+                kind="notes"
+                title="An open page for your ideas"
+                description="Create a project, then add your first note."
+              />
+            )}
+            {workspace.notes.map((note) => (
               <NoteCard key={note.id} note={note} />
             ))}
           </section>
         </div>
       </div>
-      {/* TODO(PWA): Connect reminders, offline state, and synchronization in later phases. */}
+      {/* TODO(PWA): Connect reminder delivery, offline state, and synchronization in later phases. */}
     </>
   );
 }

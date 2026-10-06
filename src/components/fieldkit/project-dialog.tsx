@@ -1,4 +1,8 @@
+"use client";
+
 import { PencilIcon, PlusIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createProject, updateProject } from "@/app/(workspace)/actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,21 +14,91 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import type { DemoProject } from "@/lib/demo-content";
-import { PreviewForm } from "./preview-form";
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
+import type { Project } from "@/lib/product-types";
+import {
+  InputError,
+  ProductForm,
+  ProductTextField,
+  SaveButton,
+  useProductForm,
+} from "./product-form";
+import { type FormStatus, useWorkspaceFeedback } from "./workspace-feedback";
 
-export function ProjectDialog({ project }: { project?: DemoProject }) {
-  const editing = Boolean(project);
+function ProjectFields({ project }: { project?: Project | undefined }) {
+  const { state } = useProductForm();
+  const initialCategory = project?.category ?? "personal";
+  const [category, setCategory] = useState<string>(initialCategory);
+  useEffect(() => setCategory(initialCategory), [initialCategory]);
   return (
-    <Dialog>
+    <FieldGroup>
+      {project && (
+        <>
+          <input type="hidden" name="id" value={project.id} />
+          <input type="hidden" name="version" value={project.version} />
+        </>
+      )}
+      <ProductTextField
+        id="project-name"
+        name="name"
+        label="Project name"
+        value={project?.name}
+        maxLength={120}
+        required
+      />
+      <ProductTextField
+        id="project-description"
+        name="description"
+        label="Description (optional)"
+        value={project?.description}
+        maxLength={5000}
+        multiline
+      />
+      <Field data-invalid={Boolean(state.fields?.category)}>
+        <FieldLabel htmlFor="project-category">Category</FieldLabel>
+        <NativeSelect
+          id="project-category"
+          name="category"
+          value={category}
+          onChange={(event) => setCategory(event.target.value)}
+          aria-invalid={Boolean(state.fields?.category)}
+          aria-describedby={
+            state.fields?.category ? "category-error" : undefined
+          }
+          className="w-full [&_select]:min-h-11"
+        >
+          <NativeSelectOption value="personal">Personal</NativeSelectOption>
+          <NativeSelectOption value="work">Work</NativeSelectOption>
+          <NativeSelectOption value="travel">Travel</NativeSelectOption>
+        </NativeSelect>
+        <InputError name="category" />
+      </Field>
+    </FieldGroup>
+  );
+}
+
+export function ProjectDialog({ project }: { project?: Project }) {
+  const editing = Boolean(project);
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<FormStatus>({
+    dirty: false,
+    pending: false,
+  });
+  const { requestLeave } = useWorkspaceFeedback();
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next, details) => {
+        if (!next && (status.dirty || status.pending)) {
+          details.cancel();
+          requestLeave(() => setOpen(false));
+        } else setOpen(next);
+      }}
+    >
       <DialogTrigger
         render={
           <Button
@@ -49,48 +123,24 @@ export function ProjectDialog({ project }: { project?: DemoProject }) {
             Keep related tasks and notes together.
           </DialogDescription>
         </DialogHeader>
-        <PreviewForm>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="project-name">Project name</FieldLabel>
-              <Input
-                id="project-name"
-                name="name"
-                className="min-h-11"
-                placeholder="e.g. A weekend away"
-                defaultValue={project?.name}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="project-description">
-                Description{" "}
-                <span className="text-muted-foreground">(optional)</span>
-              </FieldLabel>
-              <Textarea
-                id="project-description"
-                name="description"
-                placeholder="What is this project about?"
-                defaultValue={project?.description}
-                className="min-h-24"
-              />
-              <FieldDescription>
-                Design preview. Changes are not saved.
-              </FieldDescription>
-            </Field>
-          </FieldGroup>
-          {/* TODO(product): Validate and create or update the project, then show success/error feedback. */}
+        <ProductForm
+          action={editing ? updateProject : createProject}
+          onStatusChange={setStatus}
+          onSuccess={() => setOpen(false)}
+        >
+          <ProjectFields project={project} />
           {/* TODO(PWA): Persist project changes locally and queue synchronization. */}
-          <DialogFooter className="mt-6">
+          <DialogFooter>
             <DialogClose
               render={<Button variant="outline" className="min-h-11" />}
             >
               Cancel
             </DialogClose>
-            <Button type="submit" disabled className="min-h-11">
+            <SaveButton>
               {editing ? "Save changes" : "Create project"}
-            </Button>
+            </SaveButton>
           </DialogFooter>
-        </PreviewForm>
+        </ProductForm>
       </DialogContent>
     </Dialog>
   );

@@ -6,6 +6,7 @@ import { DeleteDialog } from "@/components/fieldkit/delete-dialog";
 import { EditItemDialog } from "@/components/fieldkit/editors";
 import { LinkButton } from "@/components/fieldkit/link-button";
 import { PageHeading } from "@/components/fieldkit/page-heading";
+import { TaskCompletion } from "@/components/fieldkit/task-completion";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -14,21 +15,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
-import { demoProjects, demoTasks } from "@/lib/demo-content";
-
-export function generateStaticParams() {
-  return demoTasks.map(({ id }) => ({ id }));
-}
+import { isProductId } from "@/lib/product-input";
+import { getWorkspace } from "@/lib/product-queries";
 
 async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
   const { id } = await params;
-  // TODO(data): Load the task, its project, and attachments when data fetching is enabled.
-  const task = demoTasks.find((item) => item.id === id);
+  if (!isProductId(id)) notFound();
+  const workspace = await getWorkspace();
+  const task = workspace.tasks.find((item) => item.id === id);
   if (!task) notFound();
-  const project = demoProjects.find((item) => item.id === task.projectId);
+  const project = workspace.projects.find((item) => item.id === task.projectId);
   if (!project) notFound();
   return (
     <>
@@ -37,7 +34,7 @@ async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
         title={task.title}
         description="A clear next step, with the details close at hand."
         back={{ href: `/projects/${project.id}`, label: "Back to project" }}
-        actions={<EditItemDialog task={task} />}
+        actions={<EditItemDialog task={task} projects={workspace.projects} />}
       />
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-6">
@@ -51,26 +48,10 @@ async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
             <CardContent className="flex flex-col gap-6">
               <p className="text-sm leading-7">{task.description}</p>
               <Separator />
-              {/* TODO(product): Persist completion changes and update related counts. */}
-              {/* TODO(PWA): Queue task mutations when offline. */}
-              <Field orientation="horizontal">
-                <Checkbox
-                  id="task-completion"
-                  checked={task.completed}
-                  readOnly
-                />
-                <div className="flex flex-col gap-1">
-                  <FieldLabel htmlFor="task-completion">
-                    {task.completed ? "Task completed" : "Mark as completed"}
-                  </FieldLabel>
-                  <FieldDescription>
-                    Completion is read-only in this preview.
-                  </FieldDescription>
-                </div>
-              </Field>
+              <TaskCompletion task={task} label />
             </CardContent>
           </Card>
-          <Attachments items={task.attachments} />
+          <Attachments items={task.attachments} kind="task" parentId={id} />
         </div>
         <Card>
           <CardHeader>
@@ -110,9 +91,7 @@ async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
               <CalendarDaysIcon className="mt-0.5 size-4 text-muted-foreground" />
               <div>
                 <p className="text-xs text-muted-foreground">Due date</p>
-                <p className="mt-1 text-sm">
-                  {task.dueLabel} · {task.dueDate}
-                </p>
+                <p className="mt-1 text-sm">{task.dueLabel}</p>
               </div>
             </div>
             {/* TODO(product): Allow reminders to be set, edited, and removed. */}
@@ -121,15 +100,16 @@ async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
               <BellIcon className="mt-0.5 size-4 text-muted-foreground" />
               <div>
                 <p className="text-xs text-muted-foreground">Reminder</p>
-                <p className="mt-1 text-sm">
-                  {task.reminder
-                    ? task.reminder.replace("T", " at ")
-                    : "No reminder set"}
-                </p>
+                <p className="mt-1 text-sm">{task.reminderLabel}</p>
               </div>
             </div>
             <Separator />
-            <DeleteDialog kind="task" title={task.title} />
+            <DeleteDialog
+              kind="task"
+              title={task.title}
+              id={id}
+              version={task.version}
+            />
           </CardContent>
         </Card>
       </div>

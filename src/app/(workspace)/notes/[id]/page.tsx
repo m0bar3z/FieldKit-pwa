@@ -15,27 +15,25 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { demoNotes, demoProjects } from "@/lib/demo-content";
-
-export function generateStaticParams() {
-  return demoNotes.map(({ id }) => ({ id }));
-}
+import { isProductId } from "@/lib/product-input";
+import { getWorkspace } from "@/lib/product-queries";
 
 async function NotePage({ params }: PageProps<"/notes/[id]">) {
   const { id } = await params;
-  // TODO(data): Replace the static note lookup with real note and attachment data.
-  const note = demoNotes.find((item) => item.id === id);
+  if (!isProductId(id)) notFound();
+  const workspace = await getWorkspace();
+  const note = workspace.notes.find((item) => item.id === id);
   if (!note) notFound();
-  const project = demoProjects.find((item) => item.id === note.projectId);
+  const project = workspace.projects.find((item) => item.id === note.projectId);
   if (!project) notFound();
   return (
     <>
       <PageHeading
         eyebrow={project.name}
         title={note.title}
-        description={`Last edited ${note.updated.toLowerCase()}.`}
+        description={note.updated}
         back={{ href: `/projects/${project.id}`, label: "Back to project" }}
-        actions={<EditItemDialog note={note} />}
+        actions={<EditItemDialog note={note} projects={workspace.projects} />}
       />
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-6">
@@ -48,17 +46,12 @@ async function NotePage({ params }: PageProps<"/notes/[id]">) {
               <CardDescription>A thought to come back to.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-5">
-              {note.paragraphs.map((paragraph) => (
-                <p
-                  key={paragraph}
-                  className="whitespace-pre-line text-sm leading-7"
-                >
-                  {paragraph}
-                </p>
-              ))}
+              <p className="whitespace-pre-wrap break-words text-sm leading-7">
+                {note.content || "This note is empty."}
+              </p>
             </CardContent>
           </Card>
-          <Attachments items={note.attachments} />
+          <Attachments items={note.attachments} kind="note" parentId={id} />
         </div>
         <Card>
           <CardHeader>
@@ -78,7 +71,12 @@ async function NotePage({ params }: PageProps<"/notes/[id]">) {
             </div>
             <Badge variant="outline">Plain-text note</Badge>
             <Separator />
-            <DeleteDialog kind="note" title={note.title} />
+            <DeleteDialog
+              kind="note"
+              title={note.title}
+              id={id}
+              version={note.version}
+            />
           </CardContent>
         </Card>
       </div>

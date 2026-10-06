@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { unstable_rethrow } from "next/navigation";
+import { useActionState, useRef } from "react";
 import { signIn } from "@/app/login/actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +11,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import type { SignInState } from "@/lib/auth-input";
 
 const initialState: SignInState = {};
@@ -21,9 +23,31 @@ export function SignInForm({
   next: string;
   configured: boolean;
 }) {
-  const [state, action, pending] = useActionState(signIn, initialState);
+  const submitting = useRef(false);
+  const [state, action, pending] = useActionState(
+    async (previous: SignInState, form: FormData) => {
+      try {
+        return await signIn(previous, form);
+      } catch (error) {
+        unstable_rethrow(error);
+        return { error: "Unable to sign in. Please try again." };
+      } finally {
+        submitting.current = false;
+      }
+    },
+    initialState,
+  );
   return (
-    <form action={action} className="flex flex-col gap-6">
+    <form
+      action={action}
+      className="flex flex-col gap-6"
+      aria-busy={pending}
+      onSubmit={(event) => {
+        if (submitting.current || pending || !configured)
+          event.preventDefault();
+        else submitting.current = true;
+      }}
+    >
       <input type="hidden" name="next" value={next} />
       <FieldGroup>
         <Field data-invalid={Boolean(state.errors?.email)}>
@@ -73,6 +97,7 @@ export function SignInForm({
         disabled={pending || !configured}
         className="min-h-11 w-full"
       >
+        {pending && <Spinner data-icon="inline-start" />}
         {pending ? "Signing in…" : "Sign in"}
       </Button>
     </form>

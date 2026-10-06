@@ -1,35 +1,28 @@
 import { BookOpenIcon, PlusIcon } from "lucide-react";
 import { notFound } from "next/navigation";
 import { withAuthentication } from "@/components/auth/authenticated-page";
-import { NoteCard, TaskList } from "@/components/fieldkit/content-cards";
 import { DeleteDialog } from "@/components/fieldkit/delete-dialog";
-import { EmptyItems } from "@/components/fieldkit/empty-items";
 import { LinkButton } from "@/components/fieldkit/link-button";
 import { PageHeading } from "@/components/fieldkit/page-heading";
-import { ProjectDialog } from "@/components/fieldkit/project-dialog";
-import { SearchControls } from "@/components/fieldkit/search-controls";
-import { Badge } from "@/components/ui/badge";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  NoteCollection,
+  TaskCollection,
+} from "@/components/fieldkit/product-collections";
+import { ProjectDialog } from "@/components/fieldkit/project-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { demoNotes, demoProjects, demoTasks } from "@/lib/demo-content";
-
-export function generateStaticParams() {
-  return demoProjects.map(({ id }) => ({ id }));
-}
+import { isProductId } from "@/lib/product-input";
+import { getWorkspace } from "@/lib/product-queries";
 
 async function ProjectPage({ params }: PageProps<"/projects/[id]">) {
   const { id } = await params;
-  // Static fixture lookup only. TODO(data): Load this project and its related items.
-  const project = demoProjects.find((item) => item.id === id);
+  if (!isProductId(id)) notFound();
+  const workspace = await getWorkspace();
+  const project = workspace.projects.find((item) => item.id === id);
   if (!project) notFound();
-  const tasks = demoTasks.filter((item) => item.projectId === id);
-  const notes = demoNotes.filter((item) => item.projectId === id);
+  const tasks = workspace.tasks.filter((item) => item.projectId === id);
+  const notes = workspace.notes.filter((item) => item.projectId === id);
   return (
     <>
       <PageHeading
@@ -51,7 +44,22 @@ async function ProjectPage({ params }: PageProps<"/projects/[id]">) {
             {project.updated}
           </span>
         </div>
-        <DeleteDialog kind="project" title={project.name} />
+        <DeleteDialog
+          kind="project"
+          title={project.name}
+          id={id}
+          version={project.version}
+        />
+      </div>
+      <div className="flex flex-col gap-2">
+        <p className="text-sm text-muted-foreground">
+          {project.completed} of {project.total} tasks complete ·{" "}
+          {project.progress}%
+        </p>
+        <Progress
+          value={project.progress}
+          aria-label={`${project.name} task completion`}
+        />
       </div>
       <Tabs defaultValue="tasks" className="gap-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -64,55 +72,25 @@ async function ProjectPage({ params }: PageProps<"/projects/[id]">) {
             </TabsTrigger>
           </TabsList>
           <div className="flex flex-wrap gap-2">
-            <LinkButton href="/notes/new" variant="outline">
+            <LinkButton href={`/notes/new?project=${id}`} variant="outline">
               <BookOpenIcon />
               New note
             </LinkButton>
-            <LinkButton href="/tasks/new">
+            <LinkButton href={`/tasks/new?project=${id}`}>
               <PlusIcon />
               New task
             </LinkButton>
           </div>
         </div>
         <TabsContent value="tasks" className="flex flex-col gap-5">
-          <SearchControls subject="tasks" filters />
-          {tasks.length ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Small steps, steady progress.</CardTitle>
-                <CardDescription>
-                  Everything on the list for {project.name.toLowerCase()}.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <TaskList tasks={tasks} showProject={false} />
-              </CardContent>
-            </Card>
-          ) : (
-            <EmptyItems
-              kind="tasks"
-              title="Start with one small step"
-              description="Add your first task and give this project a little direction."
-              action={{ href: "/tasks/new", label: "Create a task" }}
-            />
-          )}
+          <TaskCollection
+            tasks={tasks}
+            projectId={id}
+            projectName={project.name}
+          />
         </TabsContent>
         <TabsContent value="notes" className="flex flex-col gap-5">
-          <SearchControls subject="notes" />
-          {notes.length ? (
-            <div className="grid gap-5 md:grid-cols-2">
-              {notes.map((note) => (
-                <NoteCard key={note.id} note={note} />
-              ))}
-            </div>
-          ) : (
-            <EmptyItems
-              kind="notes"
-              title="An open page for your ideas"
-              description="Capture something worth remembering. Your first note can be anything."
-              action={{ href: "/notes/new", label: "Write a note" }}
-            />
-          )}
+          <NoteCollection notes={notes} projectId={id} />
         </TabsContent>
       </Tabs>
     </>
