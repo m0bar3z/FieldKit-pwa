@@ -29,7 +29,10 @@ export async function proxy(request: NextRequest) {
     signedIn = !error && Boolean(data.user && !data.user.is_anonymous);
   }
 
-  if (!signedIn && request.nextUrl.pathname !== "/login") {
+  const publicAuthPage = ["/login", "/register"].includes(
+    request.nextUrl.pathname,
+  );
+  if (!signedIn && !publicAuthPage) {
     const url = new URL("/login", request.url);
     url.searchParams.set("next", request.nextUrl.pathname);
     const redirect = NextResponse.redirect(url);
@@ -51,5 +54,6 @@ export const config = {
     "/tasks/:path*",
     "/notes/:path*",
     "/login",
+    "/register",
   ],
 };

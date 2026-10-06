@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { SignInForm } from "@/components/auth/sign-in-form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Card,
   CardContent,
@@ -31,11 +33,27 @@ async function SignInContent({ searchParams }: PageProps<"/login">) {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {params.confirmation === "failed" && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertDescription>
+              We couldn't finish signing you in from this link. Try signing in
+              with your email and password. Open confirmation links in the same
+              browser where you registered.
+            </AlertDescription>
+          </Alert>
+        )}
         <SignInForm next={next} configured={Boolean(getSupabaseConfig())} />
       </CardContent>
       <CardFooter>
         <p className="text-sm text-muted-foreground">
-          Use your FieldKit account to open your workspace.
+          New to FieldKit?{" "}
+          <Link
+            href="/register"
+            prefetch={false}
+            className="underline underline-offset-4"
+          >
+            Create an account
+          </Link>
         </p>
       </CardFooter>
     </Card>
