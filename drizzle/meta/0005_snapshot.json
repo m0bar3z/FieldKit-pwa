@@ -1,0 +1,1086 @@
+{
+  "id": "b839b0a5-438f-4c27-997f-64da202948ca",
+  "prevId": "7e431a80-fc62-4765-b758-168dca79cf6c",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.attachments": {
+      "name": "attachments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "task_id": {
+          "name": "task_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "note_id": {
+          "name": "note_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "file_name": {
+          "name": "file_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "byte_size": {
+          "name": "byte_size",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storage_key": {
+          "name": "storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "attachments_task_owner_idx": {
+          "name": "attachments_task_owner_idx",
+          "columns": [
+            {
+              "expression": "task_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "attachments_note_owner_idx": {
+          "name": "attachments_note_owner_idx",
+          "columns": [
+            {
+              "expression": "note_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "attachments_owner_updated_idx": {
+          "name": "attachments_owner_updated_idx",
+          "columns": [
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "attachments_owner_id_users_id_fk": {
+          "name": "attachments_owner_id_users_id_fk",
+          "tableFrom": "attachments",
+          "columnsFrom": ["owner_id"],
+          "tableTo": "users",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "attachments_task_owner_fk": {
+          "name": "attachments_task_owner_fk",
+          "tableFrom": "attachments",
+          "columnsFrom": ["owner_id", "task_id"],
+          "tableTo": "tasks",
+          "columnsTo": ["owner_id", "id"],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "attachments_note_owner_fk": {
+          "name": "attachments_note_owner_fk",
+          "tableFrom": "attachments",
+          "columnsFrom": ["owner_id", "note_id"],
+          "tableTo": "notes",
+          "columnsTo": ["owner_id", "id"],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "attachments_storage_key_unique": {
+          "name": "attachments_storage_key_unique",
+          "columns": ["storage_key"],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "attachments_owner_select": {
+          "name": "attachments_owner_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": ["authenticated"],
+          "using": "\"attachments\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        },
+        "attachments_owner_insert": {
+          "name": "attachments_owner_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": ["authenticated"],
+          "withCheck": "\"attachments\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        },
+        "attachments_owner_update": {
+          "name": "attachments_owner_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": ["authenticated"],
+          "using": "\"attachments\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))",
+          "withCheck": "\"attachments\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        },
+        "attachments_owner_delete": {
+          "name": "attachments_owner_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": ["authenticated"],
+          "using": "\"attachments\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        }
+      },
+      "checkConstraints": {
+        "attachments_exactly_one_parent": {
+          "name": "attachments_exactly_one_parent",
+          "value": "(\"attachments\".\"task_id\" IS NOT NULL) <> (\"attachments\".\"note_id\" IS NOT NULL)"
+        },
+        "attachments_file_name_not_blank": {
+          "name": "attachments_file_name_not_blank",
+          "value": "length(btrim(\"attachments\".\"file_name\")) > 0"
+        },
+        "attachments_mime_type_not_blank": {
+          "name": "attachments_mime_type_not_blank",
+          "value": "length(btrim(\"attachments\".\"mime_type\")) > 0"
+        },
+        "attachments_byte_size_nonnegative": {
+          "name": "attachments_byte_size_nonnegative",
+          "value": "\"attachments\".\"byte_size\" >= 0"
+        },
+        "attachments_storage_key_not_blank": {
+          "name": "attachments_storage_key_not_blank",
+          "value": "\"attachments\".\"storage_key\" IS NULL OR length(btrim(\"attachments\".\"storage_key\")) > 0"
+        },
+        "attachments_version_positive": {
+          "name": "attachments_version_positive",
+          "value": "\"attachments\".\"version\" > 0"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.notes": {
+      "name": "notes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        }
+      },
+      "indexes": {
+        "notes_project_owner_idx": {
+          "name": "notes_project_owner_idx",
+          "columns": [
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "notes_owner_updated_idx": {
+          "name": "notes_owner_updated_idx",
+          "columns": [
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "notes_owner_id_users_id_fk": {
+          "name": "notes_owner_id_users_id_fk",
+          "tableFrom": "notes",
+          "columnsFrom": ["owner_id"],
+          "tableTo": "users",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "notes_project_owner_fk": {
+          "name": "notes_project_owner_fk",
+          "tableFrom": "notes",
+          "columnsFrom": ["owner_id", "project_id"],
+          "tableTo": "projects",
+          "columnsTo": ["owner_id", "id"],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "notes_owner_id_id_unique": {
+          "name": "notes_owner_id_id_unique",
+          "columns": ["owner_id", "id"],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "notes_owner_select": {
+          "name": "notes_owner_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": ["authenticated"],
+          "using": "\"notes\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        },
+        "notes_owner_insert": {
+          "name": "notes_owner_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": ["authenticated"],
+          "withCheck": "\"notes\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        },
+        "notes_owner_update": {
+          "name": "notes_owner_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": ["authenticated"],
+          "using": "\"notes\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))",
+          "withCheck": "\"notes\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        },
+        "notes_owner_delete": {
+          "name": "notes_owner_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": ["authenticated"],
+          "using": "\"notes\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        }
+      },
+      "checkConstraints": {
+        "notes_title_not_blank": {
+          "name": "notes_title_not_blank",
+          "value": "length(btrim(\"notes\".\"title\")) > 0"
+        },
+        "notes_version_positive": {
+          "name": "notes_version_positive",
+          "value": "\"notes\".\"version\" > 0"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.projects": {
+      "name": "projects",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "category": {
+          "name": "category",
+          "type": "project_category",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'personal'"
+        }
+      },
+      "indexes": {
+        "projects_owner_updated_idx": {
+          "name": "projects_owner_updated_idx",
+          "columns": [
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "projects_owner_id_users_id_fk": {
+          "name": "projects_owner_id_users_id_fk",
+          "tableFrom": "projects",
+          "columnsFrom": ["owner_id"],
+          "tableTo": "users",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "projects_owner_id_id_unique": {
+          "name": "projects_owner_id_id_unique",
+          "columns": ["owner_id", "id"],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "projects_owner_select": {
+          "name": "projects_owner_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": ["authenticated"],
+          "using": "\"projects\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        },
+        "projects_owner_insert": {
+          "name": "projects_owner_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": ["authenticated"],
+          "withCheck": "\"projects\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        },
+        "projects_owner_update": {
+          "name": "projects_owner_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": ["authenticated"],
+          "using": "\"projects\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))",
+          "withCheck": "\"projects\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        },
+        "projects_owner_delete": {
+          "name": "projects_owner_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": ["authenticated"],
+          "using": "\"projects\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        }
+      },
+      "checkConstraints": {
+        "projects_name_not_blank": {
+          "name": "projects_name_not_blank",
+          "value": "length(btrim(\"projects\".\"name\")) > 0"
+        },
+        "projects_version_positive": {
+          "name": "projects_version_positive",
+          "value": "\"projects\".\"version\" > 0"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.reminders": {
+      "name": "reminders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "task_id": {
+          "name": "task_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "remind_at": {
+          "name": "remind_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "reminders_task_owner_idx": {
+          "name": "reminders_task_owner_idx",
+          "columns": [
+            {
+              "expression": "task_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "reminders_owner_updated_idx": {
+          "name": "reminders_owner_updated_idx",
+          "columns": [
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "reminders_pending_time_idx": {
+          "name": "reminders_pending_time_idx",
+          "columns": [
+            {
+              "expression": "remind_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"reminders\".\"sent_at\" IS NULL AND \"reminders\".\"deleted_at\" IS NULL",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "reminders_owner_id_users_id_fk": {
+          "name": "reminders_owner_id_users_id_fk",
+          "tableFrom": "reminders",
+          "columnsFrom": ["owner_id"],
+          "tableTo": "users",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "reminders_task_owner_fk": {
+          "name": "reminders_task_owner_fk",
+          "tableFrom": "reminders",
+          "columnsFrom": ["owner_id", "task_id"],
+          "tableTo": "tasks",
+          "columnsTo": ["owner_id", "id"],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "reminders_owner_select": {
+          "name": "reminders_owner_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": ["authenticated"],
+          "using": "\"reminders\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        },
+        "reminders_owner_insert": {
+          "name": "reminders_owner_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": ["authenticated"],
+          "withCheck": "\"reminders\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        },
+        "reminders_owner_update": {
+          "name": "reminders_owner_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": ["authenticated"],
+          "using": "\"reminders\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))",
+          "withCheck": "\"reminders\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        },
+        "reminders_owner_delete": {
+          "name": "reminders_owner_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": ["authenticated"],
+          "using": "\"reminders\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        }
+      },
+      "checkConstraints": {
+        "reminders_version_positive": {
+          "name": "reminders_version_positive",
+          "value": "\"reminders\".\"version\" > 0"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.tasks": {
+      "name": "tasks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "completed": {
+          "name": "completed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "tasks_project_owner_idx": {
+          "name": "tasks_project_owner_idx",
+          "columns": [
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "tasks_owner_updated_idx": {
+          "name": "tasks_owner_updated_idx",
+          "columns": [
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "tasks_owner_due_idx": {
+          "name": "tasks_owner_due_idx",
+          "columns": [
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "due_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "tasks_owner_id_users_id_fk": {
+          "name": "tasks_owner_id_users_id_fk",
+          "tableFrom": "tasks",
+          "columnsFrom": ["owner_id"],
+          "tableTo": "users",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "tasks_project_owner_fk": {
+          "name": "tasks_project_owner_fk",
+          "tableFrom": "tasks",
+          "columnsFrom": ["owner_id", "project_id"],
+          "tableTo": "projects",
+          "columnsTo": ["owner_id", "id"],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "tasks_owner_id_id_unique": {
+          "name": "tasks_owner_id_id_unique",
+          "columns": ["owner_id", "id"],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "tasks_owner_select": {
+          "name": "tasks_owner_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": ["authenticated"],
+          "using": "\"tasks\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        },
+        "tasks_owner_insert": {
+          "name": "tasks_owner_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": ["authenticated"],
+          "withCheck": "\"tasks\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        },
+        "tasks_owner_update": {
+          "name": "tasks_owner_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": ["authenticated"],
+          "using": "\"tasks\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))",
+          "withCheck": "\"tasks\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        },
+        "tasks_owner_delete": {
+          "name": "tasks_owner_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": ["authenticated"],
+          "using": "\"tasks\".\"owner_id\" = (select id from public.users where auth_id = (select auth.uid()))"
+        }
+      },
+      "checkConstraints": {
+        "tasks_title_not_blank": {
+          "name": "tasks_title_not_blank",
+          "value": "length(btrim(\"tasks\".\"title\")) > 0"
+        },
+        "tasks_version_positive": {
+          "name": "tasks_version_positive",
+          "value": "\"tasks\".\"version\" > 0"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auth_id": {
+          "name": "auth_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "users_auth_id_users_id_fk": {
+          "name": "users_auth_id_users_id_fk",
+          "tableFrom": "users",
+          "columnsFrom": ["auth_id"],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_auth_id_unique": {
+          "name": "users_auth_id_unique",
+          "columns": ["auth_id"],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "users_read_own": {
+          "name": "users_read_own",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": ["authenticated"],
+          "using": "\"users\".\"auth_id\" = (select auth.uid())"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    }
+  },
+  "enums": {
+    "public.project_category": {
+      "name": "project_category",
+      "schema": "public",
+      "values": ["travel", "work", "personal"]
+    }
+  },
+  "schemas": {},
+  "views": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

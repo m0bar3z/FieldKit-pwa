@@ -24,14 +24,21 @@ ownership, or creation-time changes. Future optimistic updates can match both
 `id` and the previously read `version`; a stale version then updates no rows.
 
 Foreign keys reject missing parents and mixed ownership. Hard deletion of a
-parent with children is restricted. Future deletion actions should set
-`deleted_at`, including related items as appropriate, and retain these tombstones
-until synchronization permits cleanup. The schema does not implement deletion
-actions, conflict handling, or synchronization.
+parent with children is restricted. Core product actions soft-delete projects and
+their tasks, notes, attachment metadata, and reminders in one transaction. Deleted
+items are hidden from the workspace; tombstones remain until future cleanup.
+Task and note deletion also marks their associated metadata as deleted. There is
+no restore action, file cleanup, conflict resolution, or synchronization.
 
 Due dates are calendar dates. Reminder timestamps represent instants, so callers
 must convert the user's local time to an offset/UTC before saving. Attachments
 store metadata rather than blobs; `storage_key` can remain null until upload.
+
+Migration `0005_attachment_storage.sql` creates the private Supabase Storage
+bucket and its owner access policies, with a 3 MiB limit and a MIME allowlist.
+It requires Supabase's existing `storage` schema. Explicit attachment removal
+deletes the file through Storage; project/task/note deletion continues to retain
+objects. See `docs/attachments.md` for the upload lifecycle and access rules.
 
 RLS is enabled on the product tables and `users`. `users.auth_id` maps the existing
 integer owner IDs to Supabase Auth UUIDs. Legacy users remain unmapped and cannot
@@ -40,7 +47,7 @@ be accessed by clients until an administrator explicitly associates an identity.
 clients cannot insert, change, or delete mappings. Each product policy permits
 only the mapped owner's rows. UPDATE checks both the existing and proposed owner.
 
-Future server product operations must use `src/lib/access.ts`'s
+Server product operations must use `src/lib/access.ts`'s
 `withUserDatabase`, which verifies the session and uses a transaction-local
 `authenticated` role and JWT claims. Raw privileged queries can bypass RLS and
 are reserved for trusted identity provisioning. The application database role

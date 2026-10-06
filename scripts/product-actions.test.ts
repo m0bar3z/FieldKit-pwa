@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import { and, eq, sql } from "drizzle-orm";
+import { readMigrationFiles } from "drizzle-orm/migrator";
 import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
 import {
   ProductInputError,
   readCompleted,
@@ -102,7 +102,12 @@ async function fixture() {
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT (nullif(current_setting('request.jwt.claims', true), '')::jsonb->>'sub')::uuid $$;
     GRANT USAGE ON SCHEMA auth TO authenticated;`);
   const db = drizzle(pg, { schema });
-  await migrate(db, { migrationsFolder: "drizzle" });
+  // Core CRUD uses 0000–0004; Storage migrations need Supabase's storage schema.
+  const coreMigrations = readMigrationFiles({
+    migrationsFolder: "drizzle",
+  }).slice(0, 5);
+  for (const migration of coreMigrations)
+    await pg.exec(migration.sql.join("\n"));
   await pg.query("INSERT INTO auth.users(id) VALUES ($1), ($2)", [
     actorA,
     actorB,
