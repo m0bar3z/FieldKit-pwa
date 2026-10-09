@@ -9,6 +9,7 @@ import { withAuthentication } from "@/components/auth/authenticated-page";
 import { NoteCard } from "@/components/fieldkit/content-cards";
 import { EmptyItems } from "@/components/fieldkit/empty-items";
 import { LinkButton } from "@/components/fieldkit/link-button";
+import { OnlineIndicator } from "@/components/fieldkit/online-indicator";
 import { PageHeading } from "@/components/fieldkit/page-heading";
 import { TaskCollection } from "@/components/fieldkit/product-collections";
 import { WorkspaceLink as Link } from "@/components/fieldkit/workspace-link";
@@ -29,6 +30,7 @@ async function Home() {
     <>
       <PageHeading
         eyebrow={`Your workspace · ${workspace.timeZone}`}
+        status={<OnlineIndicator />}
         title="A little focus for today."
         description="Your tasks, notes, and plans. A little easier to keep together."
         actions={

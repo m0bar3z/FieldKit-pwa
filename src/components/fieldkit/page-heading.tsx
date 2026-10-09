@@ -5,12 +5,14 @@ import { WorkspaceLink as Link } from "@/components/fieldkit/workspace-link";
 
 export function PageHeading<T extends string>({
   eyebrow,
+  status,
   title,
   description,
   actions,
   back,
 }: {
   eyebrow: string;
+  status?: ReactNode;
   title: string;
   description: string;
   actions?: ReactNode;
@@ -29,9 +31,12 @@ export function PageHeading<T extends string>({
       )}
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div className="flex min-w-0 flex-col gap-2">
-          <p className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
-            {eyebrow}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <p className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
+              {eyebrow}
+            </p>
+            {status}
+          </div>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             {title}
           </h1>
