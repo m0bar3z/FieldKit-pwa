@@ -10,7 +10,7 @@ export function OnlineIndicator() {
 
   return (
     <Badge
-      variant={isOnline ? "outline" : "destructive"}
+      variant={isOnline ? "success" : "destructive"}
       role="status"
       aria-live="polite"
       aria-atomic="true"
