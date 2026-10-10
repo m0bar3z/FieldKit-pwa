@@ -19,6 +19,9 @@ const serwist = new Serwist({
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: defaultCache,
+  precacheOptions: {
+    cleanupOutdatedCaches: true,
+  },
   fallbacks: {
     entries: [
       {
