@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
-import { and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { readMigrationFiles } from "drizzle-orm/migrator";
 import { drizzle } from "drizzle-orm/pglite";
 import {
@@ -9,7 +10,6 @@ import {
   readCompleted,
   readNote,
   readProductId,
-  readProject,
   readTask,
   readVersion,
 } from "../src/lib/product-input";
@@ -26,17 +26,24 @@ const form = (values: Record<string, string>) => {
 
 test("product inputs reject malformed fields and ignore submitted ownership", () => {
   assert.deepEqual(
-    readProject(
-      form({ name: "  Weekend  ", category: "travel", ownerId: "999" }),
+    readTask(
+      form({ title: "  First task  ", ownerId: "999", projectId: actorB }),
     ),
-    { name: "Weekend", description: "", category: "travel" },
+    { title: "First task", description: "", dueDate: null },
   );
-  for (const values of [
-    { name: " ", category: "personal" },
-    { name: "a".repeat(121), category: "personal" },
-    { name: "Valid", category: "unknown" },
-  ])
-    assert.throws(() => readProject(form(values)), ProductInputError);
+  assert.deepEqual(
+    readNote(
+      form({
+        title: "  First note  ",
+        content: "Text",
+        ownerId: "999",
+        projectId: actorB,
+      }),
+    ),
+    { title: "First note", content: "Text" },
+  );
+  for (const title of [" ", "a".repeat(201), "invalid\0title"])
+    assert.throws(() => readTask(form({ title })), ProductInputError);
   for (const dueDate of [
     "2026-02-30",
     "2026-13-01",
@@ -75,10 +82,6 @@ test("product inputs reject malformed fields and ignore submitted ownership", ()
     ProductInputError,
   );
   assert.throws(
-    () => readTask(form({ title: "Test", projectId: "../../other" })),
-    ProductInputError,
-  );
-  assert.throws(
     () => readProductId(form({ id: "not-a-uuid" })),
     ProductInputError,
   );
@@ -90,19 +93,19 @@ test("product inputs reject malformed fields and ignore submitted ownership", ()
     () => readCompleted(form({ completed: "on" })),
     ProductInputError,
   );
-  const file = form({ name: "Valid", category: "personal" });
-  file.set("name", new Blob(["file"]), "name.txt");
-  assert.throws(() => readProject(file), ProductInputError);
+  const file = form({ title: "Valid" });
+  file.set("title", new Blob(["file"]), "title.txt");
+  assert.throws(() => readTask(file), ProductInputError);
 });
 
-async function fixture() {
+async function fixture(applyReduction = true) {
   const pg = new PGlite();
   await pg.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE SCHEMA auth;
     CREATE TABLE auth.users(id uuid PRIMARY KEY);
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT (nullif(current_setting('request.jwt.claims', true), '')::jsonb->>'sub')::uuid $$;
     GRANT USAGE ON SCHEMA auth TO authenticated;`);
   const db = drizzle(pg, { schema });
-  // Core CRUD uses 0000–0004; Storage migrations need Supabase's storage schema.
+  // Reuse the existing PostgreSQL fixture; Storage setup is not needed for core CRUD.
   const coreMigrations = readMigrationFiles({
     migrationsFolder: "drizzle",
   }).slice(0, 5);
@@ -119,7 +122,7 @@ async function fixture() {
   const ownerA = Number(owners.find((row) => row.authId === actorA)?.id);
   const ownerB = Number(owners.find((row) => row.authId === actorB)?.id);
   assert(ownerA && ownerB);
-  type Tx = Parameters<typeof store.createProject>[0];
+  type Tx = Parameters<typeof store.createItem>[0];
   async function asOwner<T>(
     actor: string,
     operation: (tx: Tx, ownerId: number) => Promise<T>,
@@ -133,62 +136,59 @@ async function fixture() {
       return operation(tx as unknown as Tx, actor === actorA ? ownerA : ownerB);
     });
   }
-  return { pg, db, asOwner, ownerA, ownerB };
+  async function migrateWorkspace() {
+    const migrations = readMigrationFiles({ migrationsFolder: "drizzle" });
+    for (const migration of migrations.slice(6))
+      await pg.exec(migration.sql.join("\n"));
+  }
+  if (applyReduction) await migrateWorkspace();
+  return { pg, db, asOwner, ownerA, ownerB, migrateWorkspace };
 }
 
-test("owned project/task/note CRUD, task completion, moves, and stale-write protection", async () => {
+test("existing SQL checks cover the reduced schema and read-only legacy projects", async () => {
+  const { pg, db } = await fixture();
+  try {
+    // The SQL scripts supply their own identities and roll back their test rows.
+    await db.delete(schema.users);
+    await pg.exec("DELETE FROM auth.users");
+    for (const file of ["product-schema.sql", "owner-access.sql"])
+      await pg.exec(await readFile(`drizzle/tests/${file}`, "utf8"));
+  } finally {
+    await pg.close();
+  }
+});
+
+test("notes and tasks can be created without projects and retain stale-write protection", async () => {
   const { pg, db, asOwner } = await fixture();
   try {
-    const input = {
-      name: "Trip",
-      description: "Plan",
-      category: "travel" as const,
-    };
-    const projectId = await asOwner(actorA, (tx, owner) =>
-      store.createProject(tx, owner, input),
-    );
-    const secondId = await asOwner(actorA, (tx, owner) =>
-      store.createProject(tx, owner, { ...input, name: "Work" }),
-    );
-    await asOwner(actorA, (tx, owner) =>
-      store.updateProject(tx, owner, projectId, 1, {
-        ...input,
-        name: "Updated trip",
-      }),
-    );
-    await assert.rejects(
-      () =>
-        asOwner(actorA, (tx, owner) =>
-          store.updateProject(tx, owner, projectId, 1, input),
-        ),
-      /changed/,
-    );
     const task = {
       title: "Book train",
       description: "One ticket",
-      projectId,
       dueDate: "2026-11-10",
     };
+    const note = { title: "Plan", content: "Line one\n\nLine two" };
     const taskId = await asOwner(actorA, (tx, owner) =>
       store.createItem(tx, owner, task),
     );
-    const note = { title: "Plan", content: "Line one\n\nLine two", projectId };
     const noteId = await asOwner(actorA, (tx, owner) =>
       store.createItem(tx, owner, note),
     );
+    assert.deepEqual(await db.select().from(schema.projects), []);
     await asOwner(actorA, (tx, owner) =>
       store.updateItem(tx, owner, taskId, 1, {
         ...task,
         title: "Book two tickets",
-        projectId: secondId,
       }),
     );
     await asOwner(actorA, (tx, owner) =>
-      store.updateItem(tx, owner, noteId, 1, {
-        ...note,
-        content: "New text",
-        projectId: secondId,
-      }),
+      store.updateItem(tx, owner, noteId, 1, { ...note, content: "New text" }),
+    );
+    await assert.rejects(
+      () =>
+        asOwner(actorA, (tx, owner) =>
+          store.updateItem(tx, owner, noteId, 1, note),
+        ),
+      /changed/,
     );
     await asOwner(actorA, (tx, owner) =>
       store.setTaskCompleted(tx, owner, taskId, 2, true),
@@ -208,7 +208,7 @@ test("owned project/task/note CRUD, task completion, moves, and stale-write prot
       .from(schema.tasks)
       .where(eq(schema.tasks.id, taskId));
     assert.equal(savedTask?.title, "Book two tickets");
-    assert.equal(savedTask?.projectId, secondId);
+    assert.equal(savedTask?.projectId, null);
     assert.equal(savedTask?.completed, false);
     assert.equal(savedTask?.version, 4);
     const [savedNote] = await db
@@ -216,6 +216,7 @@ test("owned project/task/note CRUD, task completion, moves, and stale-write prot
       .from(schema.notes)
       .where(eq(schema.notes.id, noteId));
     assert.equal(savedNote?.content, "New text");
+    assert.equal(savedNote?.projectId, null);
     assert.equal(savedNote?.version, 2);
     await asOwner(actorA, (tx, owner) =>
       store.deleteProduct(tx, owner, "task", taskId, 4),
@@ -241,33 +242,18 @@ test("owned project/task/note CRUD, task completion, moves, and stale-write prot
   }
 });
 
-test("project deletion atomically tombstones related items and rejects future writes", async () => {
+test("deleting an item atomically tombstones its metadata and leaves other items intact", async () => {
   const { pg, db, asOwner, ownerA } = await fixture();
   try {
-    const projectId = await asOwner(actorA, (tx, owner) =>
-      store.createProject(tx, owner, {
-        name: "Delete me",
-        description: "",
-        category: "personal",
-      }),
-    );
-    const keptId = await asOwner(actorA, (tx, owner) =>
-      store.createProject(tx, owner, {
-        name: "Keep me",
-        description: "",
-        category: "personal",
-      }),
-    );
     const taskId = await asOwner(actorA, (tx, owner) =>
       store.createItem(tx, owner, {
         title: "Task",
         description: "",
-        projectId,
         dueDate: null,
       }),
     );
     const noteId = await asOwner(actorA, (tx, owner) =>
-      store.createItem(tx, owner, { title: "Note", content: "", projectId }),
+      store.createItem(tx, owner, { title: "Note", content: "" }),
     );
     await db.insert(schema.attachments).values([
       {
@@ -291,23 +277,13 @@ test("project deletion atomically tombstones related items and rejects future wr
       taskId,
       remindAt: new Date("2026-11-01T12:00:00Z"),
     });
-    // A failed surrounding transaction must leave the entire graph unchanged.
     await assert.rejects(
       () =>
         asOwner(actorA, async (tx, owner) => {
-          await store.deleteProduct(tx, owner, "project", projectId, 1);
+          await store.deleteProduct(tx, owner, "task", taskId, 1);
           throw new Error("rollback");
         }),
       /rollback/,
-    );
-    assert.equal(
-      (
-        await db
-          .select()
-          .from(schema.projects)
-          .where(eq(schema.projects.id, projectId))
-      )[0]?.deletedAt,
-      null,
     );
     assert(
       (await db.select().from(schema.attachments)).every(
@@ -315,49 +291,41 @@ test("project deletion atomically tombstones related items and rejects future wr
       ),
     );
     await asOwner(actorA, (tx, owner) =>
-      store.deleteProduct(tx, owner, "project", projectId, 1),
+      store.deleteProduct(tx, owner, "task", taskId, 1),
     );
-    for (const table of [
-      schema.tasks,
-      schema.notes,
-      schema.attachments,
-      schema.reminders,
-    ]) {
-      const rows = await db
-        .select({ deletedAt: table.deletedAt, version: table.version })
-        .from(table);
-      assert(rows.length > 0);
-      assert(rows.every((row) => row.deletedAt && row.version === 2));
-    }
-    assert.equal(
-      (
-        await db
-          .select()
-          .from(schema.projects)
-          .where(eq(schema.projects.id, keptId))
-      )[0]?.deletedAt,
-      null,
+    const [deletedTask] = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.id, taskId));
+    const [deletedAttachment] = await db
+      .select()
+      .from(schema.attachments)
+      .where(eq(schema.attachments.taskId, taskId));
+    const [deletedReminder] = await db
+      .select()
+      .from(schema.reminders)
+      .where(eq(schema.reminders.taskId, taskId));
+    assert(deletedTask?.deletedAt && deletedTask.version === 2);
+    assert(deletedAttachment?.deletedAt && deletedAttachment.version === 2);
+    assert.equal(deletedAttachment.storageKey, "retained-task-key");
+    assert(deletedReminder?.deletedAt && deletedReminder.version === 2);
+    const [keptNote] = await db
+      .select()
+      .from(schema.notes)
+      .where(eq(schema.notes.id, noteId));
+    const [keptAttachment] = await db
+      .select()
+      .from(schema.attachments)
+      .where(eq(schema.attachments.noteId, noteId));
+    assert.equal(keptNote?.deletedAt, null);
+    assert.equal(keptAttachment?.deletedAt, null);
+    await asOwner(actorA, (tx, owner) =>
+      store.deleteProduct(tx, owner, "note", noteId, 1),
     );
-    assert.equal(
-      (
-        await db
-          .select()
-          .from(schema.attachments)
-          .where(eq(schema.attachments.taskId, taskId))
-      )[0]?.storageKey,
-      "retained-task-key",
-    );
-    await assert.rejects(
-      () =>
-        asOwner(actorA, (tx, owner) =>
-          store.createItem(tx, owner, {
-            title: "Late task",
-            description: "",
-            projectId,
-            dueDate: null,
-          }),
-        ),
-      /unavailable/,
+    assert(
+      (await db.select().from(schema.attachments)).every(
+        (row) => row.deletedAt && row.version === 2,
+      ),
     );
     await assert.rejects(
       () =>
@@ -371,53 +339,35 @@ test("project deletion atomically tombstones related items and rejects future wr
   }
 });
 
-test("another owner cannot read, modify, delete, or attach items to someone else's project", async () => {
+test("another owner cannot read, modify, delete, or attach files to personal items", async () => {
   const { pg, db, asOwner, ownerB } = await fixture();
   try {
-    const projectId = await asOwner(actorA, (tx, owner) =>
-      store.createProject(tx, owner, {
-        name: "Private",
-        description: "",
-        category: "personal",
-      }),
-    );
-    const task = {
-      title: "Private task",
-      description: "",
-      projectId,
-      dueDate: null,
-    };
+    const task = { title: "Private task", description: "", dueDate: null };
+    const note = { title: "Private note", content: "Secret" };
     const taskId = await asOwner(actorA, (tx, owner) =>
       store.createItem(tx, owner, task),
     );
-    const note = { title: "Private note", content: "Secret", projectId };
     const noteId = await asOwner(actorA, (tx, owner) =>
       store.createItem(tx, owner, note),
     );
     await asOwner(actorB, async (tx) => {
-      assert.deepEqual(await tx.select().from(schema.projects), []);
+      assert.deepEqual(await tx.select().from(schema.tasks), []);
+      assert.deepEqual(await tx.select().from(schema.notes), []);
     });
+    type Tx = Parameters<typeof store.createItem>[0];
     for (const operation of [
-      (tx: Parameters<typeof store.createProject>[0], owner: number) =>
-        store.updateProject(tx, owner, projectId, 1, {
-          name: "Changed",
-          description: "",
-          category: "work",
-        }),
-      (tx: Parameters<typeof store.createProject>[0], owner: number) =>
-        store.createItem(tx, owner, task),
-      (tx: Parameters<typeof store.createProject>[0], owner: number) =>
-        store.updateItem(tx, owner, taskId, 1, task),
-      (tx: Parameters<typeof store.createProject>[0], owner: number) =>
-        store.updateItem(tx, owner, noteId, 1, note),
-      (tx: Parameters<typeof store.createProject>[0], owner: number) =>
+      (tx: Tx, owner: number) => store.updateItem(tx, owner, taskId, 1, task),
+      (tx: Tx, owner: number) => store.updateItem(tx, owner, noteId, 1, note),
+      (tx: Tx, owner: number) =>
         store.setTaskCompleted(tx, owner, taskId, 1, true),
-      (tx: Parameters<typeof store.createProject>[0], owner: number) =>
-        store.deleteProduct(tx, owner, "project", projectId, 1),
-      (tx: Parameters<typeof store.createProject>[0], owner: number) =>
+      (tx: Tx, owner: number) =>
         store.deleteProduct(tx, owner, "task", taskId, 1),
-      (tx: Parameters<typeof store.createProject>[0], owner: number) =>
+      (tx: Tx, owner: number) =>
         store.deleteProduct(tx, owner, "note", noteId, 1),
+      (tx: Tx, owner: number) =>
+        store.lockAttachmentParent(tx, owner, "task", taskId),
+      (tx: Tx, owner: number) =>
+        store.lockAttachmentParent(tx, owner, "note", noteId),
     ])
       await assert.rejects(
         () =>
@@ -426,23 +376,168 @@ test("another owner cannot read, modify, delete, or attach items to someone else
           }),
         /unavailable/,
       );
-    // Even a mistaken owner argument is rejected by the database policies.
     await assert.rejects(() =>
-      asOwner(actorA, (tx) =>
-        store.createProject(tx, ownerB, {
-          name: "Forged owner",
-          description: "",
-          category: "personal",
-        }),
-      ),
+      asOwner(actorA, (tx) => store.createItem(tx, ownerB, task)),
     );
     const [unchanged] = await db
       .select()
-      .from(schema.projects)
-      .where(
-        and(eq(schema.projects.id, projectId), eq(schema.projects.version, 1)),
+      .from(schema.tasks)
+      .where(eq(schema.tasks.id, taskId));
+    assert(unchanged && !unchanged.deletedAt && unchanged.version === 1);
+  } finally {
+    await pg.close();
+  }
+});
+
+test("workspace migration preserves legacy items and makes projects read-only", async () => {
+  const { pg, db, asOwner, ownerA, migrateWorkspace } = await fixture(false);
+  try {
+    const [project] = await db
+      .insert(schema.projects)
+      .values({ ownerId: ownerA, name: "Legacy project" })
+      .returning();
+    assert(project);
+    const [task] = await db
+      .insert(schema.tasks)
+      .values({
+        ownerId: ownerA,
+        projectId: project.id,
+        title: "Existing task",
+      })
+      .returning();
+    const [note] = await db
+      .insert(schema.notes)
+      .values({
+        ownerId: ownerA,
+        projectId: project.id,
+        title: "Existing note",
+        content: "Keep this text",
+      })
+      .returning();
+    assert(task && note);
+    await migrateWorkspace();
+    await asOwner(actorA, async (tx, owner) => {
+      const [legacyTask] = await tx
+        .select()
+        .from(schema.tasks)
+        .where(eq(schema.tasks.id, task.id));
+      const [legacyNote] = await tx
+        .select()
+        .from(schema.notes)
+        .where(eq(schema.notes.id, note.id));
+      assert.equal(legacyTask?.projectId, project.id);
+      assert.equal(legacyNote?.content, "Keep this text");
+      await store.updateItem(tx, owner, task.id, 1, {
+        title: "Still editable",
+        description: "",
+        dueDate: null,
+      });
+      await store.updateItem(tx, owner, note.id, 1, {
+        title: "Still editable",
+        content: "Kept",
+      });
+      assert.deepEqual(
+        await tx.update(schema.projects).set({ name: "Changed" }).returning(),
+        [],
       );
-    assert(unchanged && !unchanged.deletedAt);
+      assert.deepEqual(await tx.delete(schema.projects).returning(), []);
+    });
+    await assert.rejects(() =>
+      asOwner(actorA, (tx, owner) =>
+        tx
+          .insert(schema.projects)
+          .values({ ownerId: owner, name: "New project" }),
+      ),
+    );
+    assert.equal(
+      (await db.select().from(schema.projects))[0]?.name,
+      "Legacy project",
+    );
+  } finally {
+    await pg.close();
+  }
+});
+
+test("attachment upload policy accepts project-free parents and rejects mismatched or deleted items", async () => {
+  const { pg, db, asOwner, ownerA, migrateWorkspace } = await fixture(false);
+  try {
+    // Exercise the existing Storage policy migration with only the table/helper contract it uses.
+    await pg.exec(`CREATE SCHEMA storage;
+      CREATE TABLE storage.objects(name text PRIMARY KEY, bucket_id text NOT NULL);
+      CREATE FUNCTION storage.foldername(name text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
+        SELECT (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1)-1]
+      $$;
+      CREATE FUNCTION storage.filename(name text) RETURNS text LANGUAGE sql IMMUTABLE AS $$
+        SELECT reverse(split_part(reverse(name), '/', 1))
+      $$;
+      ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+      GRANT USAGE ON SCHEMA storage TO authenticated;
+      GRANT INSERT ON storage.objects TO authenticated;
+      CREATE POLICY fieldkit_attachment_upload ON storage.objects FOR INSERT TO authenticated WITH CHECK (false);`);
+    await migrateWorkspace();
+    const taskId = await asOwner(actorA, (tx, owner) =>
+      store.createItem(tx, owner, {
+        title: "Task",
+        description: "",
+        dueDate: null,
+      }),
+    );
+    const noteId = await asOwner(actorA, (tx, owner) =>
+      store.createItem(tx, owner, { title: "Note", content: "" }),
+    );
+    const metadata = await db
+      .insert(schema.attachments)
+      .values([
+        {
+          ownerId: ownerA,
+          taskId,
+          fileName: "task.txt",
+          mimeType: "text/plain",
+          byteSize: BigInt(5),
+        },
+        {
+          ownerId: ownerA,
+          noteId,
+          fileName: "note.txt",
+          mimeType: "text/plain",
+          byteSize: BigInt(5),
+        },
+      ])
+      .returning();
+    const taskAttachment = metadata.find((row) => row.taskId === taskId);
+    const noteAttachment = metadata.find((row) => row.noteId === noteId);
+    assert(taskAttachment && noteAttachment);
+    async function upload(actor: string, key: string) {
+      return asOwner(actor, (tx) =>
+        tx.execute(
+          sql`insert into storage.objects(bucket_id, name) values ('fieldkit-attachments', ${key})`,
+        ),
+      );
+    }
+    const taskKey = `${actorA}/tasks/${taskId}/${taskAttachment.id}`;
+    const noteKey = `${actorA}/notes/${noteId}/${noteAttachment.id}`;
+    await upload(actorA, taskKey);
+    await upload(actorA, noteKey);
+    await assert.rejects(() =>
+      upload(actorB, `${actorB}/tasks/${taskId}/${taskAttachment.id}`),
+    );
+    await assert.rejects(() =>
+      upload(actorA, `${actorA}/tasks/${taskId}/${noteAttachment.id}`),
+    );
+    await assert.rejects(() =>
+      upload(actorA, `${actorA}/tasks/${actorB}/${taskAttachment.id}`),
+    );
+    await pg.query("DELETE FROM storage.objects WHERE name = $1", [taskKey]);
+    await db
+      .update(schema.attachments)
+      .set({ storageKey: taskKey })
+      .where(eq(schema.attachments.id, taskAttachment.id));
+    await assert.rejects(() => upload(actorA, taskKey));
+    await pg.query("DELETE FROM storage.objects WHERE name = $1", [noteKey]);
+    await asOwner(actorA, (tx, owner) =>
+      store.deleteProduct(tx, owner, "note", noteId, 1),
+    );
+    await assert.rejects(() => upload(actorA, noteKey));
   } finally {
     await pg.close();
   }

@@ -23,7 +23,7 @@ export function DeleteDialog({
   id,
   version,
 }: {
-  kind: "project" | "task" | "note";
+  kind: "task" | "note";
   title: string;
   id: string;
   version: number;
@@ -61,11 +61,9 @@ export function DeleteDialog({
           <AlertDialogTitle>Delete this {kind}?</AlertDialogTitle>
           <AlertDialogDescription>
             “{title}” will be removed
-            {kind === "project"
-              ? " along with its tasks, notes, attachment metadata, and reminders"
-              : kind === "task"
-                ? " along with its attachment metadata and any reminders"
-                : " along with its attachment metadata"}
+            {kind === "task"
+              ? " along with its attachment metadata and any reminders"
+              : " along with its attachment metadata"}
             . Deleted items are hidden from your workspace. There is no restore
             action.
           </AlertDialogDescription>

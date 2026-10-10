@@ -75,7 +75,7 @@ export function filterTasks(
 ): Task[] {
   return tasks.filter(
     (task) =>
-      matchesSearch(query, task.title, task.description, task.projectName) &&
+      matchesSearch(query, task.title, task.description) &&
       (status === "all" ||
         (status === "open" ? !task.completed : task.group === status)),
   );

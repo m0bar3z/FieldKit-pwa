@@ -1,9 +1,4 @@
-import {
-  BookOpenIcon,
-  CheckCheckIcon,
-  FolderOpenIcon,
-  PaperclipIcon,
-} from "lucide-react";
+import { BookOpenIcon, CheckCheckIcon, PaperclipIcon } from "lucide-react";
 import type { Route } from "next";
 import {
   Empty,
@@ -18,7 +13,6 @@ import { LinkButton } from "./link-button";
 const icons = {
   tasks: CheckCheckIcon,
   notes: BookOpenIcon,
-  projects: FolderOpenIcon,
   attachments: PaperclipIcon,
 };
 

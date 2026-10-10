@@ -9,9 +9,7 @@ export type SignUpState = SignInState & { message?: string };
 
 export function safeReturnPath(value: unknown): Route {
   return typeof value === "string" &&
-    /^(?:\/|\/projects(?:\/[A-Za-z0-9_-]+)?|\/(?:tasks|notes)\/[A-Za-z0-9_-]+)$/.test(
-      value,
-    )
+    /^(?:\/|\/(?:tasks|notes)(?:\/[A-Za-z0-9_-]+)?)$/.test(value)
     ? (value as Route)
     : "/";
 }

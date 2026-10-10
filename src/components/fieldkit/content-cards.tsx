@@ -2,94 +2,22 @@ import {
   ArrowRightIcon,
   BellIcon,
   BookOpenIcon,
-  BriefcaseBusinessIcon,
   CalendarDaysIcon,
-  LeafIcon,
   PaperclipIcon,
-  PlaneIcon,
 } from "lucide-react";
 import { WorkspaceLink as Link } from "@/components/fieldkit/workspace-link";
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardAction,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import type { Note, Project, Task } from "@/lib/product-types";
+import type { Note, Task } from "@/lib/product-types";
 import { cn } from "@/lib/utils";
 import { TaskCompletion } from "./task-completion";
-
-const projectIcons = {
-  travel: PlaneIcon,
-  work: BriefcaseBusinessIcon,
-  personal: LeafIcon,
-};
-
-export function ProjectCard({ project }: { project: Project }) {
-  const Icon = projectIcons[project.category];
-  const noteCount = project.noteCount;
-  return (
-    <Card className="h-full">
-      <CardHeader>
-        <div className="mb-3 flex size-11 items-center justify-center rounded-xl bg-muted">
-          <Icon className="size-5" />
-        </div>
-        <CardTitle>
-          <Link
-            href={`/projects/${project.id}`}
-            className="hover:underline underline-offset-4"
-          >
-            {project.name}
-          </Link>
-        </CardTitle>
-        <CardDescription className="min-h-12">
-          {project.description}
-        </CardDescription>
-        <CardAction>
-          <Badge variant="outline">
-            {!project.total
-              ? "New"
-              : project.completed === project.total
-                ? "Completed"
-                : "In progress"}
-          </Badge>
-        </CardAction>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <div className="flex justify-between gap-2 text-xs text-muted-foreground">
-          <span>
-            {project.completed} of {project.total} tasks complete ·{" "}
-            {project.progress}%
-          </span>
-          <span>
-            {noteCount} {noteCount === 1 ? "note" : "notes"}
-          </span>
-        </div>
-        <Progress
-          value={project.progress}
-          aria-label={`${project.name} task completion`}
-        />
-      </CardContent>
-      <CardFooter className="mt-auto justify-between gap-3">
-        <span className="text-xs text-muted-foreground">{project.updated}</span>
-        <Link
-          href={`/projects/${project.id}`}
-          aria-label={`Open ${project.name}`}
-          className="flex min-h-11 items-center gap-2 text-sm font-medium hover:underline underline-offset-4"
-        >
-          Open
-          <ArrowRightIcon className="size-4" />
-        </Link>
-      </CardFooter>
-    </Card>
-  );
-}
 
 export function NoteCard({ note }: { note: Note }) {
   return (
@@ -103,7 +31,6 @@ export function NoteCard({ note }: { note: Note }) {
             {note.title}
           </Link>
         </CardTitle>
-        <CardDescription>{note.projectName}</CardDescription>
         <CardAction>
           <BookOpenIcon className="size-4 text-muted-foreground" />
         </CardAction>
@@ -128,13 +55,7 @@ export function NoteCard({ note }: { note: Note }) {
   );
 }
 
-export function TaskList({
-  tasks,
-  showProject = true,
-}: {
-  tasks: Task[];
-  showProject?: boolean;
-}) {
+export function TaskList({ tasks }: { tasks: Task[] }) {
   return (
     <div className="flex flex-col">
       {tasks.map((task, index) => {
@@ -157,7 +78,6 @@ export function TaskList({
                   {task.title}
                 </span>
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
-                  {showProject && <span>{task.projectName}</span>}
                   <span
                     className={cn(
                       "inline-flex items-center gap-1",

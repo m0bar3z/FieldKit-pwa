@@ -4,7 +4,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { withUserDatabase } from "./access";
 import { attachmentKey } from "./attachment-input";
 import { lockAttachmentParent, ProductOperationError } from "./product-store";
-import { attachments, notes, projects, tasks } from "./schema";
+import { attachments, notes, tasks } from "./schema";
 
 export async function reserveAttachment(
   kind: "task" | "note",
@@ -94,14 +94,6 @@ export async function getOwnedAttachment(id: string, authId: string) {
     const [active] = await tx
       .select({ id: parent.id })
       .from(parent)
-      .innerJoin(
-        projects,
-        and(
-          eq(projects.id, parent.projectId),
-          eq(projects.ownerId, ownerId),
-          isNull(projects.deletedAt),
-        ),
-      )
       .where(
         and(
           eq(parent.id, parentId),

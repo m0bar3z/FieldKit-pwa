@@ -8,12 +8,7 @@ import {
 } from "../src/lib/auth-input.ts";
 
 test("return paths stay inside known workspace routes", () => {
-  for (const path of [
-    "/projects",
-    "/projects/trip",
-    "/tasks/new",
-    "/notes/note_1",
-  ]) {
+  for (const path of ["/tasks", "/notes", "/tasks/new", "/notes/note_1"]) {
     assert.equal(safeReturnPath(path), path);
   }
   for (const path of [
@@ -21,8 +16,10 @@ test("return paths stay inside known workspace routes", () => {
     "//evil.example",
     "/\\evil.example",
     "/login",
-    "/projects/../login",
-    ["/projects"],
+    "/projects",
+    "/projects/trip",
+    "/tasks/../login",
+    ["/tasks"],
     null,
   ]) {
     assert.equal(safeReturnPath(path), "/");

@@ -1,7 +1,7 @@
 "use client";
 
 import { PencilIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   createNote,
   createTask,
@@ -31,45 +31,26 @@ import {
   Field,
   FieldDescription,
   FieldGroup,
-  FieldLabel,
   FieldTitle,
 } from "@/components/ui/field";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
-import type { Note, Project, Task } from "@/lib/product-types";
+import type { Note, Task } from "@/lib/product-types";
 import { LinkButton } from "./link-button";
-import {
-  InputError,
-  ProductForm,
-  ProductTextField,
-  SaveButton,
-  useProductForm,
-} from "./product-form";
+import { ProductForm, ProductTextField, SaveButton } from "./product-form";
 import { type FormStatus, useWorkspaceFeedback } from "./workspace-feedback";
 
 function ItemFields({
   kind,
-  projects,
   task,
   note,
-  projectId,
   prefix,
 }: {
   kind: "task" | "note";
-  projects: Project[];
   task?: Task | undefined;
   note?: Note | undefined;
-  projectId?: string | undefined;
   prefix: string;
 }) {
   const item = task ?? note;
-  const { state } = useProductForm();
-  const initialProjectId = item?.projectId ?? projectId ?? "";
-  const [selectedProject, setSelectedProject] = useState(initialProjectId);
-  useEffect(() => setSelectedProject(initialProjectId), [initialProjectId]);
   return (
     <FieldGroup>
       {item && (
@@ -86,31 +67,6 @@ function ItemFields({
         required
         maxLength={200}
       />
-      <Field data-invalid={Boolean(state.fields?.projectId)}>
-        <FieldLabel htmlFor={`${prefix}-project`}>Project</FieldLabel>
-        <NativeSelect
-          id={`${prefix}-project`}
-          name="projectId"
-          value={selectedProject}
-          onChange={(event) => setSelectedProject(event.target.value)}
-          required
-          aria-invalid={Boolean(state.fields?.projectId)}
-          aria-describedby={
-            state.fields?.projectId ? "projectId-error" : undefined
-          }
-          className="w-full [&_select]:min-h-11"
-        >
-          <NativeSelectOption value="" disabled>
-            Choose a project
-          </NativeSelectOption>
-          {projects.map((project) => (
-            <NativeSelectOption key={project.id} value={project.id}>
-              {project.name}
-            </NativeSelectOption>
-          ))}
-        </NativeSelect>
-        <InputError name="projectId" />
-      </Field>
       {kind === "task" ? (
         <>
           <ProductTextField
@@ -146,15 +102,7 @@ function ItemFields({
   );
 }
 
-export function NewItemEditor({
-  kind,
-  projects,
-  projectId,
-}: {
-  kind: "task" | "note";
-  projects: Project[];
-  projectId?: string | undefined;
-}) {
+export function NewItemEditor({ kind }: { kind: "task" | "note" }) {
   return (
     <Card className="min-w-0">
       <CardHeader>
@@ -164,19 +112,12 @@ export function NewItemEditor({
             : "Give your ideas a little space"}
         </CardTitle>
         <CardDescription>
-          {projects.length
-            ? "Start with a title and choose a project."
-            : "Create a project before adding tasks or notes."}
+          Start with a title. Everything stays in your personal workspace.
         </CardDescription>
       </CardHeader>
       <ProductForm action={kind === "task" ? createTask : createNote}>
         <CardContent className="flex flex-col gap-6">
-          <ItemFields
-            kind={kind}
-            projects={projects}
-            projectId={projectId}
-            prefix={`new-${kind}`}
-          />
+          <ItemFields kind={kind} prefix={`new-${kind}`} />
           <Separator />
           <FieldGroup>
             <Field>
@@ -189,25 +130,20 @@ export function NewItemEditor({
         </CardContent>
         {/* TODO(PWA): Save drafts and attachments locally when offline support is developed. */}
         <CardFooter className="flex-wrap justify-end gap-4">
-          <LinkButton href="/projects" variant="outline">
-            {projects.length ? "Cancel" : "Create a project"}
+          <LinkButton
+            href={kind === "task" ? "/tasks" : "/notes"}
+            variant="outline"
+          >
+            Cancel
           </LinkButton>
-          <SaveButton disabled={!projects.length}>Create {kind}</SaveButton>
+          <SaveButton>Create {kind}</SaveButton>
         </CardFooter>
       </ProductForm>
     </Card>
   );
 }
 
-export function EditItemDialog({
-  task,
-  note,
-  projects,
-}: {
-  task?: Task;
-  note?: Note;
-  projects: Project[];
-}) {
+export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
   const kind = task ? "task" : "note";
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<FormStatus>({
@@ -245,7 +181,6 @@ export function EditItemDialog({
         >
           <ItemFields
             kind={kind}
-            projects={projects}
             task={task}
             note={note}
             prefix={`edit-${kind}`}

@@ -3,8 +3,8 @@
 import {
   ArrowUpRightIcon,
   BookOpenIcon,
-  FolderIcon,
   HouseIcon,
+  ListTodoIcon,
   MenuIcon,
   NotebookPenIcon,
   PlusIcon,
@@ -33,7 +33,8 @@ import { WorkspaceFeedback } from "./workspace-feedback";
 
 const primaryNavigation = [
   { href: "/", label: "Today", icon: SunIcon },
-  { href: "/projects", label: "Projects", icon: FolderIcon },
+  { href: "/tasks", label: "Tasks", icon: ListTodoIcon },
+  { href: "/notes", label: "Notes", icon: BookOpenIcon },
 ] satisfies { href: Route; label: string; icon: typeof SunIcon }[];
 
 function Brand() {
@@ -108,22 +109,19 @@ export function AppShell({
         aria-label="Mobile navigation"
         className="fixed inset-x-0 bottom-0 flex items-center justify-around border-t bg-background px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden"
       >
-        {[
-          ...primaryNavigation,
-          { href: "/tasks/new" as const, label: "New task", icon: PlusIcon },
-          {
-            href: "/notes/new" as const,
-            label: "New note",
-            icon: NotebookPenIcon,
-          },
-        ].map(({ href, label, icon: Icon }) => (
+        {primaryNavigation.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
-            aria-current={pathname === href ? "page" : undefined}
+            aria-current={
+              (href === "/" ? pathname === "/" : pathname.startsWith(href))
+                ? "page"
+                : undefined
+            }
             className={cn(
               "flex min-h-12 min-w-16 flex-col items-center justify-center gap-1 rounded-lg px-2 text-[11px] text-muted-foreground transition-colors hover:text-foreground",
-              pathname === href && "bg-muted text-foreground",
+              (href === "/" ? pathname === "/" : pathname.startsWith(href)) &&
+                "bg-muted text-foreground",
             )}
           >
             <Icon className="size-5" />

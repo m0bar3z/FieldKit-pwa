@@ -167,12 +167,12 @@ BEGIN
   BEGIN
     DELETE FROM projects WHERE id = first_project;
     RAISE EXCEPTION 'Hard deletion removed a project with children';
-  EXCEPTION WHEN foreign_key_violation THEN NULL;
+  EXCEPTION WHEN foreign_key_violation OR restrict_violation THEN NULL;
   END;
   BEGIN
     DELETE FROM tasks WHERE id = first_task;
     RAISE EXCEPTION 'Hard deletion removed a task with children';
-  EXCEPTION WHEN foreign_key_violation THEN NULL;
+  EXCEPTION WHEN foreign_key_violation OR restrict_violation THEN NULL;
   END;
 
   UPDATE tasks SET completed = true WHERE id = first_task AND version = 1;

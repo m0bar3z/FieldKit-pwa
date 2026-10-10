@@ -18,16 +18,12 @@ export function SearchControls({
   onQueryChange,
   status,
   onStatusChange,
-  category,
-  onCategoryChange,
 }: {
   subject: string;
   query: string;
   onQueryChange: (value: string) => void;
   status?: TaskFilter;
   onStatusChange?: (value: TaskFilter) => void;
-  category?: string;
-  onCategoryChange?: (value: string) => void;
 }) {
   return (
     <search
@@ -63,19 +59,6 @@ export function SearchControls({
           <NativeSelectOption value="unscheduled">
             No due date
           </NativeSelectOption>
-        </NativeSelect>
-      )}
-      {onCategoryChange && (
-        <NativeSelect
-          aria-label="Filter projects by category"
-          value={category ?? "all"}
-          onChange={(event) => onCategoryChange(event.target.value)}
-          className="min-h-11 w-full sm:w-auto"
-        >
-          <NativeSelectOption value="all">All categories</NativeSelectOption>
-          <NativeSelectOption value="personal">Personal</NativeSelectOption>
-          <NativeSelectOption value="work">Work</NativeSelectOption>
-          <NativeSelectOption value="travel">Travel</NativeSelectOption>
         </NativeSelect>
       )}
     </search>

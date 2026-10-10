@@ -1,22 +1,16 @@
-export type ProductKind = "project" | "task" | "note";
+export type ProductKind = "task" | "note";
 export type ProductActionState = {
   error?: string;
   fields?: Record<string, string>;
   success?: string;
   destination?: string;
 };
-export type ProjectInput = {
-  name: string;
-  description: string;
-  category: "travel" | "work" | "personal";
-};
 export type TaskInput = {
   title: string;
   description: string;
-  projectId: string;
   dueDate: string | null;
 };
-export type NoteInput = { title: string; content: string; projectId: string };
+export type NoteInput = { title: string; content: string };
 
 export class ProductInputError extends Error {
   constructor(public fields: Record<string, string>) {
@@ -69,19 +63,9 @@ export function readVersion(form: FormData) {
   return value;
 }
 
-export function readProject(form: FormData): ProjectInput {
-  const name = text(form, "name", 120, true);
-  const description = text(form, "description", 5000);
-  const category = form.get("category");
-  if (category !== "travel" && category !== "work" && category !== "personal")
-    throw new ProductInputError({ category: "Choose a project category." });
-  return { name, description, category };
-}
-
 export function readTask(form: FormData): TaskInput {
   const title = text(form, "title", 200, true);
   const description = text(form, "description", 10000);
-  const projectId = readProductId(form, "projectId");
   const dueDate = text(form, "dueDate", 10);
   const date = new Date(`${dueDate}T00:00:00Z`);
   if (
@@ -93,14 +77,13 @@ export function readTask(form: FormData): TaskInput {
       date.toISOString().slice(0, 10) !== dueDate)
   )
     throw new ProductInputError({ dueDate: "Choose a valid calendar date." });
-  return { title, description, projectId, dueDate: dueDate || null };
+  return { title, description, dueDate: dueDate || null };
 }
 
 export function readNote(form: FormData): NoteInput {
   return {
     title: text(form, "title", 200, true),
     content: text(form, "content", 100000, false, false),
-    projectId: readProductId(form, "projectId"),
   };
 }
 

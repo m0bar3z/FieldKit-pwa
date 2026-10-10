@@ -10,9 +10,9 @@ The baseline preserves an existing starter `users` table, which must match
 
 | Table | Parent | Product fields |
 | --- | --- | --- |
-| projects | existing user | name, description, category |
-| tasks | project with the same owner | title, description, completed, due date |
-| notes | project with the same owner | title, plain-text content |
+| projects (legacy, read-only) | existing user | preserved historical name, description, category |
+| tasks | existing user; optional legacy project link | title, description, completed, due date |
+| notes | existing user; optional legacy project link | title, plain-text content |
 | attachments | exactly one task or note with the same owner | filename, MIME type, byte size, optional storage object key |
 | reminders | task with the same owner | reminder instant, optional sent instant |
 
@@ -24,11 +24,10 @@ ownership, or creation-time changes. Future optimistic updates can match both
 `id` and the previously read `version`; a stale version then updates no rows.
 
 Foreign keys reject missing parents and mixed ownership. Hard deletion of a
-parent with children is restricted. Core product actions soft-delete projects and
-their tasks, notes, attachment metadata, and reminders in one transaction. Deleted
+parent with children is restricted. Core product actions soft-delete a task or
+note and its attachment metadata (and task reminders) in one transaction. Deleted
 items are hidden from the workspace; tombstones remain until future cleanup.
-Task and note deletion also marks their associated metadata as deleted. There is
-no restore action, file cleanup, conflict resolution, or synchronization.
+There is no restore action, file cleanup, conflict resolution, or synchronization.
 
 Due dates are calendar dates. Reminder timestamps represent instants, so callers
 must convert the user's local time to an offset/UTC before saving. Attachments
@@ -37,8 +36,21 @@ store metadata rather than blobs; `storage_key` can remain null until upload.
 Migration `0005_attachment_storage.sql` creates the private Supabase Storage
 bucket and its owner access policies, with a 3 MiB limit and a MIME allowlist.
 It requires Supabase's existing `storage` schema. Explicit attachment removal
-deletes the file through Storage; project/task/note deletion continues to retain
+deletes the file through Storage; task/note deletion continues to retain
 objects. See `docs/attachments.md` for the upload lifecycle and access rules.
+
+## Personal workspace migration
+
+Apply `0006_personal_workspace.sql` after migrations 0000–0005, using your usual
+migration runner, before running the reduced application. This migration is
+prepared in the repository; it does not run when Next.js starts.
+
+It allows tasks and notes without a project, removes authenticated project write
+policies, and updates the attachment upload policy to require only an active owned
+task or note. Existing task/note IDs, contents, versions, and attachment paths are
+preserved and appear in the personal workspace. Historical projects and their
+links remain in the database for preservation; the app has no project pages or
+operations. New items have a null `project_id` and belong directly to their user.
 
 RLS is enabled on the product tables and `users`. `users.auth_id` maps the existing
 integer owner IDs to Supabase Auth UUIDs. Legacy users remain unmapped and cannot

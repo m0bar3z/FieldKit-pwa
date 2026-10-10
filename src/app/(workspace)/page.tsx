@@ -1,5 +1,4 @@
 import {
-  ArrowRightIcon,
   BookOpenIcon,
   CalendarDaysIcon,
   Clock3Icon,
@@ -12,15 +11,12 @@ import { LinkButton } from "@/components/fieldkit/link-button";
 import { OnlineIndicator } from "@/components/fieldkit/online-indicator";
 import { PageHeading } from "@/components/fieldkit/page-heading";
 import { TaskCollection } from "@/components/fieldkit/product-collections";
-import { WorkspaceLink as Link } from "@/components/fieldkit/workspace-link";
 import {
   Card,
   CardAction,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { getWorkspace } from "@/lib/product-queries";
 
@@ -61,9 +57,9 @@ async function Home() {
             icon: Clock3Icon,
           },
           {
-            label: "Active projects",
-            count: workspace.counts.activeProjects,
-            caption: "Everything has a place",
+            label: "Notes",
+            count: workspace.counts.notes,
+            caption: "Ideas in your personal workspace",
             icon: BookOpenIcon,
           },
         ].map(({ label, count, caption, icon: Icon }) => (
@@ -91,48 +87,6 @@ async function Home() {
           <TaskCollection tasks={workspace.tasks} />
         </section>
         <div className="flex min-w-0 flex-col gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Your projects</CardTitle>
-              <CardDescription>
-                A home for each part of your day.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              {!workspace.projects.length && (
-                <EmptyItems
-                  kind="projects"
-                  title="Your first project"
-                  description="Create a home for your tasks and notes."
-                  action={{ href: "/projects", label: "Create a project" }}
-                />
-              )}
-              {workspace.projects.map((project) => (
-                <Link
-                  key={project.id}
-                  href={`/projects/${project.id}`}
-                  className="flex min-h-14 items-center justify-between gap-3 rounded-lg px-3 py-2 hover:bg-muted"
-                >
-                  <div className="flex flex-col gap-1">
-                    <span className="text-sm font-medium">{project.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {project.total - project.completed} open tasks
-                    </span>
-                  </div>
-                  <ArrowRightIcon className="size-4 text-muted-foreground" />
-                </Link>
-              ))}
-            </CardContent>
-            <CardFooter>
-              <Link
-                href="/projects"
-                className="flex min-h-11 items-center gap-2 text-sm font-medium"
-              >
-                All projects
-                <ArrowRightIcon className="size-4" />
-              </Link>
-            </CardFooter>
-          </Card>
           <section
             aria-labelledby="recent-notes-heading"
             className="flex flex-col gap-3"
@@ -141,16 +95,19 @@ async function Home() {
               <h2 id="recent-notes-heading" className="text-sm font-semibold">
                 Worth remembering
               </h2>
-              <BookOpenIcon className="size-4 text-muted-foreground" />
+              <LinkButton href="/notes" variant="link">
+                All notes
+              </LinkButton>
             </div>
             {!workspace.notes.length && (
               <EmptyItems
                 kind="notes"
                 title="An open page for your ideas"
-                description="Create a project, then add your first note."
+                description="Capture your first thought in your personal workspace."
+                action={{ href: "/notes/new", label: "Write a note" }}
               />
             )}
-            {workspace.notes.map((note) => (
+            {workspace.notes.slice(0, 3).map((note) => (
               <NoteCard key={note.id} note={note} />
             ))}
           </section>

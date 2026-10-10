@@ -43,6 +43,13 @@
       "when": 1791301901283,
       "tag": "0005_attachment_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791647632533,
+      "tag": "0006_personal_workspace",
+      "breakpoints": true
     }
   ]
 }

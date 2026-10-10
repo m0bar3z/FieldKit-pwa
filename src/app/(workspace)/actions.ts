@@ -9,7 +9,6 @@ import {
   readCompleted,
   readNote,
   readProductId,
-  readProject,
   readTask,
   readVersion,
 } from "@/lib/product-input";
@@ -35,34 +34,6 @@ async function run(
   // Let the form announce success before navigating. Destinations are constructed
   // here from validated IDs, never supplied as URLs.
   return { success, ...(destination ? { destination } : {}) };
-}
-
-export async function createProject(
-  _state: ProductActionState,
-  form: FormData,
-) {
-  return run(async () => {
-    const input = readProject(form);
-    const id = await withUserDatabase((tx, ownerId) =>
-      store.createProject(tx, ownerId, input),
-    );
-    return `/projects/${id}`;
-  }, "Project created.");
-}
-
-export async function updateProject(
-  _state: ProductActionState,
-  form: FormData,
-) {
-  return run(async () => {
-    const id = readProductId(form),
-      version = readVersion(form),
-      input = readProject(form);
-    await withUserDatabase((tx, ownerId) =>
-      store.updateProject(tx, ownerId, id, version, input),
-    );
-    return `/projects/${id}`;
-  }, "Project saved.");
 }
 
 async function saveItem(
@@ -97,14 +68,14 @@ export async function updateNote(_state: ProductActionState, form: FormData) {
 export async function deleteItem(_state: ProductActionState, form: FormData) {
   return run(async () => {
     const kind = form.get("kind");
-    if (kind !== "project" && kind !== "task" && kind !== "note")
+    if (kind !== "task" && kind !== "note")
       throw new ProductInputError({ kind: "Choose a valid item." });
     const id = readProductId(form),
       version = readVersion(form);
-    const parentId = await withUserDatabase((tx, ownerId) =>
+    await withUserDatabase((tx, ownerId) =>
       store.deleteProduct(tx, ownerId, kind, id, version),
     );
-    return kind === "project" ? "/projects" : `/projects/${parentId}`;
+    return kind === "task" ? "/tasks" : "/notes";
   }, "Item deleted.");
 }
 

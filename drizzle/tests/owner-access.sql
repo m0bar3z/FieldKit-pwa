@@ -55,6 +55,15 @@ BEGIN
     EXECUTE format('DELETE FROM public.%I WHERE owner_id = -102', table_name);
     GET DIAGNOSTICS changed_rows = ROW_COUNT;
     IF changed_rows <> 0 THEN RAISE EXCEPTION 'Owner A deleted owner B''s %', table_name; END IF;
+    IF table_name = 'projects' THEN
+      EXECUTE 'UPDATE public.projects SET version = 999 WHERE owner_id = -101';
+      GET DIAGNOSTICS changed_rows = ROW_COUNT;
+      IF changed_rows <> 0 THEN RAISE EXCEPTION 'Legacy projects are writable'; END IF;
+      EXECUTE 'DELETE FROM public.projects WHERE owner_id = -101';
+      GET DIAGNOSTICS changed_rows = ROW_COUNT;
+      IF changed_rows <> 0 THEN RAISE EXCEPTION 'Legacy projects are deletable'; END IF;
+      CONTINUE;
+    END IF;
     EXECUTE format('UPDATE public.%I SET version = 999 WHERE owner_id = -101', table_name);
     GET DIAGNOSTICS changed_rows = ROW_COUNT;
     IF changed_rows <> 1 THEN RAISE EXCEPTION 'Owner A cannot update their own %', table_name; END IF;
@@ -70,22 +79,21 @@ SELECT pg_temp.assert_sqlstate('INSERT INTO notes (owner_id, project_id, title) 
 SELECT pg_temp.assert_sqlstate('INSERT INTO attachments (owner_id, task_id, file_name, mime_type, byte_size) VALUES (-102, ''22222222-2222-4222-8222-222222222223'', ''stolen.txt'', ''text/plain'', 1)', '42501');
 SELECT pg_temp.assert_sqlstate('INSERT INTO reminders (owner_id, task_id, remind_at) VALUES (-102, ''22222222-2222-4222-8222-222222222223'', now())', '42501');
 SELECT pg_temp.assert_sqlstate('INSERT INTO tasks (owner_id, project_id, title) VALUES (-101, ''22222222-2222-4222-8222-222222222222'', ''Mixed owners'')', '23503');
-SELECT pg_temp.assert_sqlstate('UPDATE projects SET owner_id = -102 WHERE owner_id = -101', '23514');
+SELECT pg_temp.assert_sqlstate('UPDATE tasks SET owner_id = -102 WHERE owner_id = -101', '23514');
+SELECT pg_temp.assert_sqlstate('INSERT INTO projects (owner_id, name) VALUES (-101, ''Retired feature'')', '42501');
 SELECT pg_temp.assert_sqlstate('INSERT INTO public.users (auth_id) VALUES (''aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'')', '42501');
 SELECT pg_temp.assert_sqlstate('UPDATE public.users SET auth_id = ''bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'' WHERE id = -101', '42501');
 SELECT pg_temp.assert_sqlstate('DELETE FROM public.users WHERE id = -101', '42501');
 
--- Legitimate creation and deletion work for each product table.
-INSERT INTO projects (id, owner_id, name) VALUES ('11111111-1111-4111-8111-111111111114', -101, 'Own temporary project');
-INSERT INTO tasks (id, owner_id, project_id, title) VALUES ('11111111-1111-4111-8111-111111111115', -101, '11111111-1111-4111-8111-111111111114', 'Own temporary task');
-INSERT INTO notes (id, owner_id, project_id, title) VALUES ('11111111-1111-4111-8111-111111111116', -101, '11111111-1111-4111-8111-111111111114', 'Own temporary note');
+-- Legitimate creation and deletion work without a project.
+INSERT INTO tasks (id, owner_id, title) VALUES ('11111111-1111-4111-8111-111111111115', -101, 'Own temporary task');
+INSERT INTO notes (id, owner_id, title) VALUES ('11111111-1111-4111-8111-111111111116', -101, 'Own temporary note');
 INSERT INTO attachments (owner_id, note_id, file_name, mime_type, byte_size) VALUES (-101, '11111111-1111-4111-8111-111111111116', 'own.txt', 'text/plain', 1);
 INSERT INTO reminders (owner_id, task_id, remind_at) VALUES (-101, '11111111-1111-4111-8111-111111111115', now());
 DELETE FROM attachments WHERE note_id = '11111111-1111-4111-8111-111111111116';
 DELETE FROM reminders WHERE task_id = '11111111-1111-4111-8111-111111111115';
 DELETE FROM tasks WHERE id = '11111111-1111-4111-8111-111111111115';
 DELETE FROM notes WHERE id = '11111111-1111-4111-8111-111111111116';
-DELETE FROM projects WHERE id = '11111111-1111-4111-8111-111111111114';
 
 SELECT set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb","role":"authenticated"}', true);
 DO $$

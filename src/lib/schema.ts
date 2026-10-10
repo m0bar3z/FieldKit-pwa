@@ -101,6 +101,7 @@ function ownerPolicies(tableName: string, ownerId: AnyPgColumn) {
   ];
 }
 
+// Retired feature: preserve historical projects and links without exposing project writes.
 export const projects = pgTable(
   "projects",
   {
@@ -118,7 +119,7 @@ export const projects = pgTable(
     ),
     check("projects_name_not_blank", sql`length(btrim(${table.name})) > 0`),
     check("projects_version_positive", sql`${table.version} > 0`),
-    ...ownerPolicies("projects", table.ownerId),
+    ...ownerPolicies("projects", table.ownerId).slice(0, 1),
   ],
 ).enableRLS();
 
@@ -126,7 +127,8 @@ export const tasks = pgTable(
   "tasks",
   {
     ...ownedSyncColumns(),
-    projectId: uuid("project_id").notNull(),
+    // Legacy link only; new items belong directly to the owner.
+    projectId: uuid("project_id"),
     title: text("title").notNull(),
     description: text("description").default("").notNull(),
     completed: boolean("completed").default(false).notNull(),
@@ -157,7 +159,8 @@ export const notes = pgTable(
   "notes",
   {
     ...ownedSyncColumns(),
-    projectId: uuid("project_id").notNull(),
+    // Legacy link only; new items belong directly to the owner.
+    projectId: uuid("project_id"),
     title: text("title").notNull(),
     content: text("content").default("").notNull(),
   },
@@ -264,35 +267,20 @@ export const reminders = pgTable(
 ).enableRLS();
 
 export const usersRelations = relations(users, ({ many }) => ({
-  projects: many(projects),
   tasks: many(tasks),
   notes: many(notes),
   attachments: many(attachments),
   reminders: many(reminders),
 }));
 
-export const projectsRelations = relations(projects, ({ one, many }) => ({
-  owner: one(users, { fields: [projects.ownerId], references: [users.id] }),
-  tasks: many(tasks),
-  notes: many(notes),
-}));
-
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
   owner: one(users, { fields: [tasks.ownerId], references: [users.id] }),
-  project: one(projects, {
-    fields: [tasks.ownerId, tasks.projectId],
-    references: [projects.ownerId, projects.id],
-  }),
   attachments: many(attachments),
   reminders: many(reminders),
 }));
 
 export const notesRelations = relations(notes, ({ one, many }) => ({
   owner: one(users, { fields: [notes.ownerId], references: [users.id] }),
-  project: one(projects, {
-    fields: [notes.ownerId, notes.projectId],
-    references: [projects.ownerId, projects.id],
-  }),
   attachments: many(attachments),
 }));
 

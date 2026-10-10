@@ -17,7 +17,7 @@ const APP_NAME = "FieldKit";
 const APP_DEFAULT_TITLE = "FieldKit — Notes & Tasks";
 const APP_TITLE_TEMPLATE = "%s | FieldKit";
 const APP_DESCRIPTION =
-  "Keep your projects, tasks, and field notes organized in one simple workspace.";
+  "Keep your tasks and field notes organized in one simple personal workspace.";
 
 export const metadata: Metadata = {
   applicationName: APP_NAME,

@@ -1,16 +1,3 @@
-export type Project = {
-  id: string;
-  name: string;
-  description: string;
-  category: "travel" | "work" | "personal";
-  version: number;
-  completed: number;
-  total: number;
-  noteCount: number;
-  progress: number;
-  updated: string;
-};
-
 export type Attachment = {
   id: string;
   version: number;
@@ -30,8 +17,6 @@ export type Task = {
   id: string;
   title: string;
   description: string;
-  projectId: string;
-  projectName: string;
   version: number;
   completed: boolean;
   dueDate: string;
@@ -47,8 +32,6 @@ export type Note = {
   title: string;
   content: string;
   excerpt: string;
-  projectId: string;
-  projectName: string;
   version: number;
   updated: string;
   attachments: Attachment[];

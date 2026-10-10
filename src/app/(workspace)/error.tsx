@@ -25,8 +25,8 @@ export default function WorkspaceError({ retry }: { retry: () => void }) {
           {pending && <Spinner data-icon="inline-start" />}
           {pending ? "Trying again…" : "Try again"}
         </Button>
-        <LinkButton href="/projects" variant="outline">
-          Back to projects
+        <LinkButton href="/" variant="outline">
+          Back to workspace
         </LinkButton>
       </EmptyContent>
     </Empty>
