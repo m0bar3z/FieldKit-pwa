@@ -25,6 +25,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { InstallationGuide } from "./installation-guide";
 import { LinkButton } from "./link-button";
 import { ServiceWorkerUpdatePrompt } from "./service-worker-update-prompt";
 import { WorkspaceClock } from "./workspace-clock";
@@ -208,9 +209,7 @@ export function AppShell({
             My workspace
           </p>
           <div className="flex items-center gap-3">
-            <span className="hidden text-xs text-muted-foreground sm:inline">
-              Notes & tasks
-            </span>
+            <InstallationGuide />
             {accountActions}
           </div>
         </header>
