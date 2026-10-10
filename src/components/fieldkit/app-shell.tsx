@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { LinkButton } from "./link-button";
+import { ServiceWorkerUpdatePrompt } from "./service-worker-update-prompt";
 import { WorkspaceClock } from "./workspace-clock";
 import { WorkspaceFeedback } from "./workspace-feedback";
 
@@ -218,6 +219,7 @@ export function AppShell({
           tabIndex={-1}
           className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-7 pb-28 outline-none sm:px-8 sm:py-10 lg:px-10 lg:pb-12"
         >
+          <ServiceWorkerUpdatePrompt />
           <WorkspaceFeedback />
           {children}
         </main>
@@ -225,7 +227,6 @@ export function AppShell({
           <MobileNavigation />
         </Suspense>
       </div>
-      {/* TODO(PWA): Add installation, offline status, and app-update UI in a later phase. */}
     </div>
   );
 }
