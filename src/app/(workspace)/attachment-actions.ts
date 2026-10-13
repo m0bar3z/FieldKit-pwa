@@ -9,6 +9,7 @@ import {
   validateAttachmentBytes,
   validateAttachmentFile,
 } from "@/lib/attachments/input";
+import { uploadAttachmentSchema } from "@/lib/attachments/schemas";
 import {
   cancelAttachment,
   finishAttachment,
@@ -17,6 +18,7 @@ import {
   reserveAttachment,
 } from "@/lib/attachments/store";
 import { requireUser } from "@/lib/auth/session";
+import { validationFields } from "@/lib/forms/validation";
 import {
   type ProductActionState,
   ProductInputError,
@@ -27,10 +29,11 @@ import { ProductOperationError } from "@/lib/products/store";
 import { createAuthClient } from "@/lib/supabase/server";
 
 function failure(error: unknown): ProductActionState {
+  if (error instanceof ProductInputError)
+    return { error: error.message, fields: error.fields };
   return {
     error:
       error instanceof AttachmentInputError ||
-      error instanceof ProductInputError ||
       error instanceof ProductOperationError
         ? error.message
         : "Unable to complete the file operation. Please try again.",
@@ -43,13 +46,15 @@ export async function uploadAttachment(
 ): Promise<ProductActionState> {
   const user = await requireUser();
   try {
-    const kind = form.get("kind");
-    if (kind !== "task" && kind !== "note")
-      throw new AttachmentInputError("Choose a task or note for this file.");
-    const parentId = readProductId(form, "parentId");
-    const file = form.get("file");
-    if (!(file instanceof File))
-      throw new AttachmentInputError("Choose a file to upload.");
+    const parsed = uploadAttachmentSchema.safeParse({
+      kind: form.get("kind"),
+      parentId: form.get("parentId"),
+      file: form.get("file"),
+    });
+    if (!parsed.success)
+      throw new ProductInputError(validationFields(parsed.error));
+    const { kind, parentId, file } = parsed.data;
+    if (!file) throw new AttachmentInputError("Choose a file to upload.");
     const mimeType = validateAttachmentFile(file);
     const bytes = new Uint8Array(await file.arrayBuffer());
     validateAttachmentBytes(bytes, mimeType);

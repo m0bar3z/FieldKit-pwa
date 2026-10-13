@@ -1,49 +1,26 @@
-export const ATTACHMENT_BUCKET = "fieldkit-attachments";
-export const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024;
-export const ATTACHMENT_ACCEPT = ".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt";
-export const ATTACHMENT_HELP =
-  "JPG, PNG, WebP, GIF, PDF, or UTF-8 text. Up to 3 MB per file.";
+import { attachmentMime } from "./constants";
+import { attachmentMetadataSchema } from "./schemas";
 
-const formats: Record<string, { mime: string; extensions: string[] }> = {
-  "image/jpeg": { mime: "image/jpeg", extensions: ["jpg", "jpeg"] },
-  "image/png": { mime: "image/png", extensions: ["png"] },
-  "image/webp": { mime: "image/webp", extensions: ["webp"] },
-  "image/gif": { mime: "image/gif", extensions: ["gif"] },
-  "application/pdf": { mime: "application/pdf", extensions: ["pdf"] },
-  "text/plain": { mime: "text/plain", extensions: ["txt"] },
-};
+export {
+  ATTACHMENT_ACCEPT,
+  ATTACHMENT_BUCKET,
+  ATTACHMENT_HELP,
+  MAX_ATTACHMENT_BYTES,
+} from "./constants";
 
 export class AttachmentInputError extends Error {}
 
-// MIME claims are not enough: validate filename/size here and bytes on the server.
 export function validateAttachmentFile(
   file: Pick<File, "name" | "type" | "size">,
 ) {
-  if (!file.size) throw new AttachmentInputError("Choose a non-empty file.");
-  if (file.size > MAX_ATTACHMENT_BYTES)
-    throw new AttachmentInputError("Files must be 3 MB or smaller.");
-  if (
-    !file.name.trim() ||
-    file.name.length > 255 ||
-    [...file.name].some((character) => {
-      const code = character.charCodeAt(0);
-      return (
-        code < 32 || code === 127 || character === "/" || character === "\\"
-      );
-    })
-  )
+  const result = attachmentMetadataSchema.safeParse(file);
+  if (!result.success)
     throw new AttachmentInputError(
-      "Use a filename without paths or control characters, up to 255 characters.",
+      result.error.issues[0]?.message ?? "Choose another file.",
     );
-  const extension = file.name.split(".").at(-1)?.toLowerCase();
-  const format = Object.values(formats).find((item) =>
-    item.extensions.includes(extension ?? ""),
-  );
-  if (!format || (file.type && file.type !== format.mime))
-    throw new AttachmentInputError(
-      "Choose a JPG, PNG, WebP, GIF, PDF, or text file.",
-    );
-  return format.mime;
+  const mime = attachmentMime(result.data.name);
+  if (!mime) throw new AttachmentInputError("Choose another file.");
+  return mime;
 }
 
 export function validateAttachmentBytes(bytes: Uint8Array, mime: string) {

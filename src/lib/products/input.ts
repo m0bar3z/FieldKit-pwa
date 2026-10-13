@@ -1,3 +1,13 @@
+import type { z } from "zod";
+import { validationFields } from "@/lib/forms/validation";
+import {
+  completedValueSchema,
+  noteSchema,
+  productIdSchema,
+  taskSchema,
+  versionSchema,
+} from "./schemas";
+
 export type ProductKind = "task" | "note";
 export type ProductActionState = {
   error?: string;
@@ -5,12 +15,10 @@ export type ProductActionState = {
   success?: string;
   destination?: string;
 };
-export type TaskInput = {
-  title: string;
-  description: string;
+export type TaskInput = Omit<z.infer<typeof taskSchema>, "dueDate"> & {
   dueDate: string | null;
 };
-export type NoteInput = { title: string; content: string };
+export type NoteInput = z.infer<typeof noteSchema>;
 
 export class ProductInputError extends Error {
   constructor(public fields: Record<string, string>) {
@@ -19,79 +27,51 @@ export class ProductInputError extends Error {
 }
 
 export function isProductId(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      value,
-    )
-  );
-}
-
-function text(
-  form: FormData,
-  key: string,
-  max: number,
-  required = false,
-  trim = true,
-) {
-  const raw = form.get(key);
-  if (raw !== null && typeof raw !== "string")
-    throw new ProductInputError({ [key]: "Enter text, not a file." });
-  const value = trim ? (raw ?? "").trim() : (raw ?? "");
-  if (required && !value)
-    throw new ProductInputError({ [key]: "This field is required." });
-  if (value.includes("\0") || value.length > max)
-    throw new ProductInputError({
-      [key]: `Use at most ${max} characters without null characters.`,
-    });
-  return value;
+  return productIdSchema.safeParse(value).success;
 }
 
 export function readProductId(form: FormData, key = "id") {
-  const value = form.get(key);
-  if (!isProductId(value))
-    throw new ProductInputError({ [key]: "Choose a valid item." });
-  return value;
+  const result = productIdSchema.safeParse(form.get(key));
+  if (!result.success)
+    throw new ProductInputError({
+      [key]: result.error.issues[0]?.message ?? "Choose a valid item.",
+    });
+  return result.data;
 }
 
 export function readVersion(form: FormData) {
-  const raw = form.get("version");
-  const value =
-    typeof raw === "string" && /^[1-9]\d{0,9}$/.test(raw) ? Number(raw) : 0;
-  if (!Number.isSafeInteger(value) || value < 1 || value > 2147483647)
+  const result = versionSchema.safeParse(form.get("version"));
+  if (!result.success)
     throw new ProductInputError({ version: "Refresh the page and try again." });
-  return value;
+  return Number(result.data);
 }
 
 export function readTask(form: FormData): TaskInput {
-  const title = text(form, "title", 200, true);
-  const description = text(form, "description", 10000);
-  const dueDate = text(form, "dueDate", 10);
-  const date = new Date(`${dueDate}T00:00:00Z`);
-  if (
-    dueDate &&
-    (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate) ||
-      dueDate < "0001-01-01" ||
-      dueDate > "9999-12-31" ||
-      !Number.isFinite(date.getTime()) ||
-      date.toISOString().slice(0, 10) !== dueDate)
-  )
-    throw new ProductInputError({ dueDate: "Choose a valid calendar date." });
-  return { title, description, dueDate: dueDate || null };
+  const result = taskSchema.safeParse({
+    title: form.get("title") ?? "",
+    description: form.get("description") ?? "",
+    dueDate: form.get("dueDate") ?? "",
+  });
+  if (!result.success)
+    throw new ProductInputError(validationFields(result.error));
+  return { ...result.data, dueDate: result.data.dueDate || null };
 }
 
 export function readNote(form: FormData): NoteInput {
-  return {
-    title: text(form, "title", 200, true),
-    content: text(form, "content", 100000, false, false),
-  };
+  const result = noteSchema.safeParse({
+    title: form.get("title") ?? "",
+    content: form.get("content") ?? "",
+  });
+  if (!result.success)
+    throw new ProductInputError(validationFields(result.error));
+  return result.data;
 }
 
 export function readCompleted(form: FormData) {
-  const value = form.get("completed");
-  if (value !== "true" && value !== "false")
+  const result = completedValueSchema.safeParse(form.get("completed"));
+  if (!result.success)
     throw new ProductInputError({
       completed: "Choose a valid completion state.",
     });
-  return value === "true";
+  return result.data === "true";
 }

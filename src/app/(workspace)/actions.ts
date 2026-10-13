@@ -12,6 +12,7 @@ import {
   readTask,
   readVersion,
 } from "@/lib/products/input";
+import { productKindSchema } from "@/lib/products/schemas";
 import * as store from "@/lib/products/store";
 
 async function run(
@@ -67,9 +68,10 @@ export async function updateNote(_state: ProductActionState, form: FormData) {
 
 export async function deleteItem(_state: ProductActionState, form: FormData) {
   return run(async () => {
-    const kind = form.get("kind");
-    if (kind !== "task" && kind !== "note")
+    const parsedKind = productKindSchema.safeParse(form.get("kind"));
+    if (!parsedKind.success)
       throw new ProductInputError({ kind: "Choose a valid item." });
+    const kind = parsedKind.data;
     const id = readProductId(form),
       version = readVersion(form);
     await withUserDatabase((tx, ownerId) =>

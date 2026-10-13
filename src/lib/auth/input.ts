@@ -1,4 +1,6 @@
 import type { Route } from "next";
+import { validationFields } from "@/lib/forms/validation";
+import { signInSchema, signUpSchema } from "./schemas";
 
 export type SignInState = {
   error?: string;
@@ -14,30 +16,34 @@ export function safeReturnPath(value: unknown): Route {
     : "/";
 }
 
-export function validateSignIn(formData: FormData) {
+function validateCredentials(formData: FormData, schema: typeof signInSchema) {
   const rawEmail = formData.get("email");
-  const password = formData.get("password");
-  const email = typeof rawEmail === "string" ? rawEmail.trim() : "";
-  const errors: NonNullable<SignInState["errors"]> = {};
-  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errors.email = "Enter a valid email address.";
-  }
-  if (typeof password !== "string" || !password || password.length > 1024) {
-    errors.password = "Enter your password.";
-  }
+  const rawPassword = formData.get("password");
+  const result = schema.safeParse({ email: rawEmail, password: rawPassword });
+  const errors: NonNullable<SignInState["errors"]> = result.success
+    ? {}
+    : validationFields(result.error);
   return {
-    email,
-    password: typeof password === "string" ? password : "",
+    email: result.success
+      ? result.data.email
+      : typeof rawEmail === "string"
+        ? rawEmail.trim()
+        : "",
+    password: result.success
+      ? result.data.password
+      : typeof rawPassword === "string"
+        ? rawPassword
+        : "",
     errors,
   };
 }
 
+export function validateSignIn(formData: FormData) {
+  return validateCredentials(formData, signInSchema);
+}
+
 export function validateSignUp(formData: FormData) {
-  const result = validateSignIn(formData);
-  if (!result.errors.password && result.password.length < 8) {
-    result.errors.password = "Use at least 8 characters.";
-  }
-  return result;
+  return validateCredentials(formData, signUpSchema);
 }
 
 export function registrationCallbackUrl(origin: string | null) {
