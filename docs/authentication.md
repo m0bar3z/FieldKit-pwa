@@ -3,6 +3,9 @@
 FieldKit uses Supabase email/password sign-in and server-managed, HTTP-only
 session cookies. Existing users can sign in at `/login` and sign out from the
 workspace header. New users can register with email and password at `/register`.
+Sign-in and registration use React Hook Form with shared Zod schemas. Credentials
+are validated again in Server Actions; password whitespace is preserved, failed
+requests retain inputs, and a confirmation-email response clears the password.
 Password recovery remains a separate feature.
 Product pages read owned records and use authenticated actions for writes.
 

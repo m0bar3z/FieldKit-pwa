@@ -156,7 +156,7 @@ src/
     fieldkit/
       attachments/               # Upload, download, and removal UI
       editors/                   # Task/note creation, editing, and deletion
-      feedback/                  # Notices, empty states, and unsaved-change guards
+      feedback/                  # Notices and empty states
       forms/                     # Form context, fields, buttons, and search controls
       layout/                    # Workspace shell, heading, loading UI, and clock
       navigation/                # Workspace links and desktop/mobile navigation
@@ -169,7 +169,7 @@ src/
     attachments/                 # File validation, storage operations, and downloads
     auth/                        # Session and credential helpers
     database/                    # Drizzle client, schema, and owner access boundary
-    forms/                       # Form snapshot utilities
+    forms/                       # Schemas, serialization, and Server Action helpers
     navigation/                  # Workspace routes and matching
     products/                    # Inputs, queries, writes, types, and presentation
     pwa/                         # Installation guide data

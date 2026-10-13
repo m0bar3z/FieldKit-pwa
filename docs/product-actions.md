@@ -23,22 +23,24 @@ storage setup in 0005 and project retirement in 0006. Existing items are preserv
 See `authentication.md` for Supabase configuration and database permissions, and
 `attachments.md` for private storage setup and file operations.
 
-All actions validate IDs, versions, required titles, text lengths, calendar
-dates, and completion values. Ownership comes from the verified session and RLS. Stale edits, completion changes, and deletes are rejected
-instead of overwriting a newer version. Failed saves keep entered form values.
+Shared Zod schemas validate titles, text lengths, calendar dates, IDs, versions,
+and completion values in the browser and again in authenticated server actions.
+Ownership comes from the verified session and RLS. Stale edits, completion changes,
+and deletes are rejected rather than overwriting a newer version.
 
-Forms show saving/deleting indicators, inline validation and request errors, and
-dismissible success feedback after navigation. A synchronous submission lock
-prevents rapid double submissions before React's pending state updates. Controls
-stay disabled while the request or successful navigation is pending. Dialogs
-close after a successful save and cannot be dismissed while saving.
+Each form configures React Hook Form and the Zod resolver and owns its async submit
+handler. React Hook Form tracks submission state and field errors. Failed saves
+preserve entries and map server validation errors back to fields; general failures
+appear in the form's error summary.
 
-Changed forms show an unsaved indicator. Returning every field to its initial
-value clears it. App links, sign-out, and dialog dismissal ask before discarding
-edits; reload and tab/window close use the browser's native warning. These guards
-do not intercept browser Back/Forward within the same document, and native
-unload warnings depend on browser support. Automatic clock refreshes pause while
-a form is dirty or saving. Drafts are not persisted to browser storage.
+Forms show saving/deleting indicators and inline errors. Workspace feedback shows
+dismissible success notices. Submit handlers prevent concurrent writes, and
+successful creation/deletion keeps submission disabled while navigating. Dialogs
+close after successful saves and cannot be dismissed while saving.
+
+Unsaved-change tracking and navigation/unload confirmations have been removed.
+Cancel and navigation discard edits without prompting. Drafts are not persisted
+to browser storage; the clock can refresh pages when the local day/time zone changes.
 
 Workspace pages show loading skeletons, retryable loading errors, contextual
 empty/search-result states, and a missing-item page for unavailable IDs.

@@ -3,7 +3,10 @@
 Create a task or note, open its detail page, choose **Add file**, and select a
 file. Upload it, download it, or remove it after confirming the deletion. A failed
 upload keeps the file selected for retry. Uploads and removals show pending,
-success, and error feedback and block duplicate submissions.
+success, and error feedback and block duplicate submissions. React Hook Form uses
+a shared Zod schema for selection, metadata, and parent identity; the server repeats
+validation and separately checks the actual file bytes. File inputs remain selected
+after failed uploads.
 
 Supported types are JPEG, PNG, WebP, GIF, PDF, and UTF-8 plain text. Files must be
 non-empty and at most 3 MiB (3,145,728 bytes). The client checks size, extension,
