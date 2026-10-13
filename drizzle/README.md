@@ -6,7 +6,7 @@ migrations in order using a PostgreSQL migration runner. Do not use `push` as a
 replacement: the metadata triggers live in the custom SQL migration.
 
 The baseline preserves an existing starter `users` table, which must match
-`src/lib/schema.ts`. It can also create that table on a fresh database.
+`src/lib/database/schema.ts`. It can also create that table on a fresh database.
 
 | Table | Parent | Product fields |
 | --- | --- | --- |
@@ -59,7 +59,7 @@ be accessed by clients until an administrator explicitly associates an identity.
 clients cannot insert, change, or delete mappings. Each product policy permits
 only the mapped owner's rows. UPDATE checks both the existing and proposed owner.
 
-Server product operations must use `src/lib/access.ts`'s
+Server product operations must use `src/lib/database/access.ts`'s
 `withUserDatabase`, which verifies the session and uses a transaction-local
 `authenticated` role and JWT claims. Raw privileged queries can bypass RLS and
 are reserved for trusted identity provisioning. The application database role

@@ -144,16 +144,37 @@ included in repository clones.
 ```text
 src/
   app/
-    page.tsx                     # Home page with PWA controls
-    layout.tsx                   # Root layout
+    (workspace)/                 # Dashboard, notes, tasks, and server actions
+    login/                       # Sign-in page and actions
+    register/                    # Registration page and actions
+    api/attachments/             # Authenticated file downloads
+    serwist/[path]/              # Generated service-worker route
+    sw.ts                        # Service-worker configuration
     manifest.ts                  # Web app manifest
   components/
-    PushNotificationManager.tsx  # Subscription and test notification UI
-    InstallPrompt.tsx            # Installation guidance
+    auth/                        # Authentication forms and page boundary
+    fieldkit/
+      attachments/               # Upload, download, and removal UI
+      editors/                   # Task/note creation, editing, and deletion
+      feedback/                  # Notices, empty states, and unsaved-change guards
+      forms/                     # Form context, fields, buttons, and search controls
+      layout/                    # Workspace shell, heading, loading UI, and clock
+      navigation/                # Workspace links and desktop/mobile navigation
+      notes/                     # Note cards and collection
+      tasks/                     # Task lists, collection, and completion controls
+      pwa/                       # Installation, connection, and update UI
+    ui/                          # Installed shadcn components
+  hooks/                         # Shared client hooks
   lib/
-    service-worker.js            # Push and notification-click handlers
-  actions.ts                     # Push subscription and delivery prototype
-  utils.ts                       # VAPID public key conversion
+    attachments/                 # File validation, storage operations, and downloads
+    auth/                        # Session and credential helpers
+    database/                    # Drizzle client, schema, and owner access boundary
+    forms/                       # Form snapshot utilities
+    navigation/                  # Workspace routes and matching
+    products/                    # Inputs, queries, writes, types, and presentation
+    pwa/                         # Installation guide data
+    shared/                      # Shared styling utilities
+    supabase/                    # Supabase configuration and server client
 public/                          # Manifest icons and static assets
 ```
 
