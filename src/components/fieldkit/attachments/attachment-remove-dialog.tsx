@@ -1,7 +1,11 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Trash2Icon } from "lucide-react";
-import { useState } from "react";
+import { unstable_rethrow } from "next/navigation";
+import { useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import type { z } from "zod";
 import { removeAttachment } from "@/app/(workspace)/attachment-actions";
 import {
   AlertDialog,
@@ -15,8 +19,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
+import { toFormData } from "@/lib/forms/form-data";
+import { runServerAction } from "@/lib/forms/server-action";
+import { setServerErrors } from "@/lib/forms/server-errors";
+import { identitySchema } from "@/lib/products/schemas";
 import type { Attachment } from "@/lib/products/types";
-import type { FormStatus } from "../feedback/workspace-feedback-context";
 import { ProductForm } from "../forms/product-form";
 import { SaveButton } from "../forms/save-button";
 
@@ -26,19 +33,45 @@ export function AttachmentRemoveDialog({
   attachment: Attachment;
 }) {
   const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState<FormStatus>({
-    dirty: false,
-    pending: false,
+  const { notify } = useWorkspaceFeedback();
+  const form = useForm<z.infer<typeof identitySchema>>({
+    resolver: zodResolver(identitySchema),
+    values: { id: attachment.id, version: String(attachment.version) },
   });
-  const { requestLeave } = useWorkspaceFeedback();
+  const submitting = useRef(false);
+
+  async function handleSubmit(values: z.infer<typeof identitySchema>) {
+    if (submitting.current) return;
+    submitting.current = true;
+    try {
+      const result = await runServerAction(() =>
+        removeAttachment({}, toFormData(values)),
+      );
+      if (setServerErrors(form.setError, result)) return;
+      if (result.success) notify(result.success);
+      setOpen(false);
+    } catch (error) {
+      unstable_rethrow(error);
+      form.setError("root.server", {
+        message: "Unable to remove this file. Please try again.",
+      });
+    } finally {
+      submitting.current = false;
+    }
+  }
   return (
     <AlertDialog
       open={open}
       onOpenChange={(next, details) => {
-        if (!next && status.pending) {
-          details.cancel();
-          requestLeave(() => setOpen(false));
-        } else setOpen(next);
+        if (form.formState.isSubmitting || submitting.current) details.cancel();
+        else {
+          if (next)
+            form.reset({
+              id: attachment.id,
+              version: String(attachment.version),
+            });
+          setOpen(next);
+        }
       }}
     >
       <AlertDialogTrigger
@@ -62,14 +95,10 @@ export function AttachmentRemoveDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <ProductForm
-          action={removeAttachment}
-          warnUnsaved={false}
+          form={form}
+          onSubmit={form.handleSubmit(handleSubmit)}
           pendingLabel="Removing…"
-          onStatusChange={setStatus}
-          onSuccess={() => setOpen(false)}
         >
-          <input type="hidden" name="id" value={attachment.id} />
-          <input type="hidden" name="version" value={attachment.version} />
           <AlertDialogFooter>
             <AlertDialogCancel className="min-h-11">
               Keep file

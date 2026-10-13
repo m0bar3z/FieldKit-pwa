@@ -1,7 +1,12 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Trash2Icon } from "lucide-react";
-import { useState } from "react";
+import type { Route } from "next";
+import { unstable_rethrow, useRouter } from "next/navigation";
+import { useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import type { z } from "zod";
 import { deleteItem } from "@/app/(workspace)/actions";
 import {
   AlertDialog,
@@ -15,7 +20,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
-import type { FormStatus } from "../feedback/workspace-feedback-context";
+import { toFormData } from "@/lib/forms/form-data";
+import { runServerAction } from "@/lib/forms/server-action";
+import { setServerErrors } from "@/lib/forms/server-errors";
+import { deleteItemSchema } from "@/lib/products/schemas";
 import { ProductForm } from "../forms/product-form";
 import { SaveButton } from "../forms/save-button";
 
@@ -31,19 +39,47 @@ export function DeleteDialog({
   version: number;
 }) {
   const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState<FormStatus>({
-    dirty: false,
-    pending: false,
+  const { notify } = useWorkspaceFeedback();
+  const form = useForm<z.infer<typeof deleteItemSchema>>({
+    resolver: zodResolver(deleteItemSchema),
+    values: { id, version: String(version), kind },
   });
-  const { requestLeave } = useWorkspaceFeedback();
+  const submitting = useRef(false);
+  const router = useRouter();
+  const [navigating, setNavigating] = useState(false);
+
+  async function handleSubmit(values: z.infer<typeof deleteItemSchema>) {
+    if (submitting.current || navigating) return;
+    submitting.current = true;
+    try {
+      const result = await runServerAction(() =>
+        deleteItem({}, toFormData(values)),
+      );
+      if (setServerErrors(form.setError, result)) return;
+      if (result.success) notify(result.success);
+      setOpen(false);
+      if (result.destination) {
+        setNavigating(true);
+        router.push(result.destination as Route);
+      }
+    } catch (error) {
+      unstable_rethrow(error);
+      form.setError("root.server", {
+        message: "Unable to delete this item. Please try again.",
+      });
+    } finally {
+      submitting.current = false;
+    }
+  }
   return (
     <AlertDialog
       open={open}
       onOpenChange={(next, details) => {
-        if (!next && status.pending) {
-          details.cancel();
-          requestLeave(() => setOpen(false));
-        } else setOpen(next);
+        if (form.formState.isSubmitting || submitting.current) details.cancel();
+        else {
+          if (next) form.reset({ id, version: String(version), kind });
+          setOpen(next);
+        }
       }}
     >
       <AlertDialogTrigger
@@ -72,15 +108,11 @@ export function DeleteDialog({
         </AlertDialogHeader>
         {/* TODO(PWA): Queue the deletion for offline synchronization. */}
         <ProductForm
-          action={deleteItem}
-          warnUnsaved={false}
-          pendingLabel="Deleting…"
-          onStatusChange={setStatus}
-          onSuccess={() => setOpen(false)}
+          form={form}
+          onSubmit={form.handleSubmit(handleSubmit)}
+          navigating={navigating}
+          pendingLabel={navigating ? "Opening workspace…" : "Deleting…"}
         >
-          <input type="hidden" name="id" value={id} />
-          <input type="hidden" name="version" value={version} />
-          <input type="hidden" name="kind" value={kind} />
           <AlertDialogFooter>
             <AlertDialogCancel className="min-h-11">
               Keep {kind}

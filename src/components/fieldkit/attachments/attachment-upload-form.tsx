@@ -1,14 +1,10 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { unstable_rethrow } from "next/navigation";
-import {
-  startTransition,
-  useActionState,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from "react";
+import { useId, useRef } from "react";
+import { Controller, useForm, useWatch } from "react-hook-form";
+import type { z } from "zod";
 import { uploadAttachment } from "@/app/(workspace)/attachment-actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -24,9 +20,11 @@ import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
 import {
   ATTACHMENT_ACCEPT,
   ATTACHMENT_HELP,
-  validateAttachmentFile,
-} from "@/lib/attachments/input";
-import type { ProductActionState } from "@/lib/products/input";
+} from "@/lib/attachments/constants";
+import { uploadAttachmentSchema } from "@/lib/attachments/schemas";
+import { toFormData } from "@/lib/forms/form-data";
+import { runServerAction } from "@/lib/forms/server-action";
+import { setServerErrors } from "@/lib/forms/server-errors";
 
 export function AttachmentUploadForm({
   kind,
@@ -38,85 +36,77 @@ export function AttachmentUploadForm({
   close: () => void;
 }) {
   const id = useId();
-  const [file, setFile] = useState<File | null>(null);
-  const [validationError, setValidationError] = useState("");
+  const { notify } = useWorkspaceFeedback();
+  const form = useForm<z.infer<typeof uploadAttachmentSchema>>({
+    resolver: zodResolver(uploadAttachmentSchema),
+    defaultValues: { kind, parentId, file: null },
+    mode: "onChange",
+  });
   const submitting = useRef(false);
-  const { setGuard, notify, requestLeave } = useWorkspaceFeedback();
-  const [state, dispatch, pending] = useActionState<
-    ProductActionState,
-    FormData
-  >(async (previous, form) => {
+  const pending = form.formState.isSubmitting;
+  const file = useWatch({ control: form.control, name: "file" });
+
+  async function handleSubmit(values: z.infer<typeof uploadAttachmentSchema>) {
+    if (submitting.current) return;
+    submitting.current = true;
     try {
-      const result = await uploadAttachment(previous, form);
-      if (result.success) {
-        setGuard(id, null);
-        notify(result.success);
-        close();
-      }
-      return result;
+      const result = await runServerAction(() =>
+        uploadAttachment({}, toFormData(values)),
+      );
+      if (setServerErrors(form.setError, result)) return;
+      if (result.success) notify(result.success);
+      close();
     } catch (error) {
       unstable_rethrow(error);
-      return { error: "Upload failed. Please try again." };
+      form.setError("root.server", {
+        message: "Upload failed. Please try again.",
+      });
     } finally {
       submitting.current = false;
     }
-  }, {});
-  useEffect(() => {
-    setGuard(id, { dirty: Boolean(file), pending });
-  }, [id, file, pending, setGuard]);
-  useEffect(() => () => setGuard(id, null), [id, setGuard]);
-  const error = validationError || state.error;
+  }
+  const errors = form.formState.errors;
+  const error =
+    errors.file?.message ||
+    errors.parentId?.message ||
+    errors.kind?.message ||
+    errors.root?.server?.message;
   return (
     <form
+      noValidate
+      onSubmit={form.handleSubmit(handleSubmit)}
       aria-busy={pending}
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (submitting.current || pending || !file || validationError) return;
-        submitting.current = true;
-        const form = new FormData(event.currentTarget);
-        form.set("kind", kind);
-        form.set("parentId", parentId);
-        setGuard(id, { dirty: true, pending: true });
-        // Manual dispatch keeps the native selection available after a failure.
-        startTransition(() => dispatch(form));
-      }}
     >
       <FieldGroup>
-        <Field data-invalid={Boolean(validationError)} data-disabled={pending}>
-          <FieldLabel htmlFor={id}>Choose an attachment</FieldLabel>
-          <Input
-            id={id}
-            name="file"
-            type="file"
-            accept={ATTACHMENT_ACCEPT}
-            required
-            disabled={pending}
-            aria-invalid={Boolean(validationError)}
-            aria-describedby={`${id}-help${error ? ` ${id}-error` : ""}`}
-            onChange={(event) => {
-              const selected = event.target.files?.[0] ?? null;
-              setValidationError("");
-              try {
-                if (selected) validateAttachmentFile(selected);
-                setFile(selected);
-                setGuard(id, { dirty: Boolean(selected), pending: false });
-              } catch (error) {
-                setFile(null);
-                setGuard(id, null);
-                setValidationError(
-                  error instanceof Error
-                    ? error.message
-                    : "Choose another file.",
-                );
-              }
-            }}
-          />
-          <FieldDescription id={`${id}-help`}>
-            {ATTACHMENT_HELP}
-          </FieldDescription>
-        </Field>
+        <Controller
+          name="file"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid} data-disabled={pending}>
+              <FieldLabel htmlFor={id}>Choose an attachment</FieldLabel>
+              <Input
+                ref={field.ref}
+                onBlur={field.onBlur}
+                name={field.name}
+                id={id}
+                type="file"
+                accept={ATTACHMENT_ACCEPT}
+                required
+                disabled={pending}
+                aria-invalid={fieldState.invalid}
+                aria-describedby={`${id}-help${error ? ` ${id}-error` : ""}`}
+                onChange={(event) =>
+                  field.onChange(event.target.files?.[0] ?? null)
+                }
+              />
+              <FieldDescription id={`${id}-help`}>
+                {ATTACHMENT_HELP}
+              </FieldDescription>
+            </Field>
+          )}
+        />
         {error && !pending && (
-          <Alert id={`${id}-error`} variant="destructive">
+          <Alert id={`${id}-error`} variant="destructive" tabIndex={-1}>
             <AlertTitle>File was not uploaded</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
@@ -129,7 +119,7 @@ export function AttachmentUploadForm({
         <Field orientation="horizontal">
           <Button
             type="submit"
-            disabled={pending || !file || Boolean(validationError)}
+            disabled={pending || !file || Boolean(errors.file)}
             className="min-h-11"
           >
             {pending && <Spinner data-icon="inline-start" />}
@@ -140,7 +130,7 @@ export function AttachmentUploadForm({
             variant="outline"
             disabled={pending}
             className="min-h-11"
-            onClick={() => requestLeave(close)}
+            onClick={close}
           >
             Cancel
           </Button>

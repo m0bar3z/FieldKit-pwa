@@ -1,11 +1,10 @@
 "use client";
 
+import { useFormContext } from "react-hook-form";
 import { FieldError } from "@/components/ui/field";
-import { useProductForm } from "@/hooks/use-product-form";
 
-export function InputError({ name }: { name: string }) {
-  const { state } = useProductForm();
-  return state.fields?.[name] ? (
-    <FieldError id={`${name}-error`}>{state.fields[name]}</FieldError>
-  ) : null;
+export function InputError({ name, id }: { name: string; id: string }) {
+  const { getFieldState, formState } = useFormContext();
+  const error = getFieldState(name, formState).error;
+  return error ? <FieldError id={id} errors={[error]} /> : null;
 }

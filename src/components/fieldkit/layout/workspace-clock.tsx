@@ -2,17 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
 import { calendarDateAt, TIME_ZONE_COOKIE } from "@/lib/products/presentation";
 
 export function WorkspaceClock() {
   const router = useRouter();
-  const { hasBlockingChanges } = useWorkspaceFeedback();
   useEffect(() => {
     let previousDay = "";
     function updateClock() {
-      if (hasBlockingChanges() || document.visibilityState !== "visible")
-        return;
+      if (document.visibilityState !== "visible") return;
       const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const cookie = `${TIME_ZONE_COOKIE}=${encodeURIComponent(timeZone)}`;
       const changedZone = !document.cookie.split("; ").includes(cookie);
@@ -35,6 +32,6 @@ export function WorkspaceClock() {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [router, hasBlockingChanges]);
+  }, [router]);
   return null;
 }

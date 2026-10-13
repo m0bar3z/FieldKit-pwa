@@ -1,51 +1,51 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { unstable_rethrow } from "next/navigation";
-import { useActionState, useRef } from "react";
+import { useRef } from "react";
+import { useForm } from "react-hook-form";
 import { signOut } from "@/app/login/actions";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
-import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
-import type { SignInState } from "@/lib/auth/input";
-
-const initialState: SignInState = {};
+import { emptyFormSchema } from "@/lib/forms/schemas";
+import { runServerAction } from "@/lib/forms/server-action";
+import { setServerErrors } from "@/lib/forms/server-errors";
 
 export function SignOutButton() {
+  const form = useForm({
+    resolver: zodResolver(emptyFormSchema),
+    defaultValues: {},
+  });
   const submitting = useRef(false);
-  const approved = useRef(false);
-  const { hasBlockingChanges, requestLeave } = useWorkspaceFeedback();
-  const [state, action, pending] = useActionState(async () => {
+  const pending = form.formState.isSubmitting;
+  const error = form.formState.errors.root?.server?.message;
+
+  async function handleSubmit() {
+    if (submitting.current) return;
+    submitting.current = true;
     try {
-      return await signOut();
+      const result = await runServerAction(signOut);
+      setServerErrors(form.setError, result);
     } catch (error) {
       unstable_rethrow(error);
-      return { error: "Unable to sign out. Please try again." };
+      form.setError("root.server", {
+        message: "Unable to sign out. Please try again.",
+      });
     } finally {
       submitting.current = false;
     }
-  }, initialState);
+  }
+
   return (
     <form
-      action={action}
+      noValidate
       className="flex flex-col gap-1"
       aria-busy={pending}
       onSubmit={(event) => {
-        if (submitting.current || pending) {
-          event.preventDefault();
-          return;
-        }
-        if (!approved.current && hasBlockingChanges()) {
-          event.preventDefault();
-          const form = event.currentTarget;
-          requestLeave(() => {
-            approved.current = true;
-            form.requestSubmit();
-          });
-          return;
-        }
-        approved.current = false;
-        submitting.current = true;
+        event.preventDefault();
+        if (pending || submitting.current) return;
+        void form.handleSubmit(handleSubmit)();
       }}
     >
       <Button
@@ -57,7 +57,7 @@ export function SignOutButton() {
         {pending && <Spinner data-icon="inline-start" />}
         {pending ? "Signing out…" : "Sign out"}
       </Button>
-      {state.error && <FieldError role="alert">{state.error}</FieldError>}
+      {error && <FieldError role="alert">{error}</FieldError>}
     </form>
   );
 }

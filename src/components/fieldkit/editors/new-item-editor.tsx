@@ -1,5 +1,10 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
+import type { Route } from "next";
+import { unstable_rethrow, useRouter } from "next/navigation";
+import { useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 import { createNote, createTask } from "@/app/(workspace)/actions";
 import {
   Card,
@@ -16,12 +21,50 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
+import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
+import { toFormData } from "@/lib/forms/form-data";
+import { runServerAction } from "@/lib/forms/server-action";
+import { setServerErrors } from "@/lib/forms/server-errors";
+import { itemFormValues } from "@/lib/products/form-values";
+import { type ItemFormValues, itemFormSchema } from "@/lib/products/schemas";
 import { ProductForm } from "../forms/product-form";
 import { SaveButton } from "../forms/save-button";
 import { LinkButton } from "../navigation/link-button";
 import { ItemFields } from "./item-fields";
 
 export function NewItemEditor({ kind }: { kind: "task" | "note" }) {
+  const { notify } = useWorkspaceFeedback();
+  const form = useForm<ItemFormValues>({
+    resolver: zodResolver(itemFormSchema),
+    defaultValues: itemFormValues(kind),
+  });
+  const submitting = useRef(false);
+  const router = useRouter();
+  const [navigating, setNavigating] = useState(false);
+
+  async function handleSubmit(values: ItemFormValues) {
+    if (submitting.current || navigating) return;
+    submitting.current = true;
+    try {
+      const action = kind === "task" ? createTask : createNote;
+      const result = await runServerAction(() =>
+        action({}, toFormData(values)),
+      );
+      if (setServerErrors(form.setError, result)) return;
+      if (result.success) notify(result.success);
+      if (result.destination) {
+        setNavigating(true);
+        router.push(result.destination as Route);
+      }
+    } catch (error) {
+      unstable_rethrow(error);
+      form.setError("root.server", {
+        message: "Unable to save changes. Please try again.",
+      });
+    } finally {
+      submitting.current = false;
+    }
+  }
   return (
     <Card className="min-w-0">
       <CardHeader>
@@ -34,7 +77,12 @@ export function NewItemEditor({ kind }: { kind: "task" | "note" }) {
           Start with a title. Everything stays in your personal workspace.
         </CardDescription>
       </CardHeader>
-      <ProductForm action={kind === "task" ? createTask : createNote}>
+      <ProductForm
+        form={form}
+        onSubmit={form.handleSubmit(handleSubmit)}
+        navigating={navigating}
+        pendingLabel={navigating ? "Opening saved item…" : "Saving…"}
+      >
         <CardContent className="flex flex-col gap-6">
           <ItemFields kind={kind} prefix={`new-${kind}`} />
           <Separator />
