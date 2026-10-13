@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { withUserDatabase } from "@/lib/access";
-import { requireUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth/session";
+import { withUserDatabase } from "@/lib/database/access";
 import {
   type ProductActionState,
   ProductInputError,
@@ -11,8 +11,8 @@ import {
   readProductId,
   readTask,
   readVersion,
-} from "@/lib/product-input";
-import * as store from "@/lib/product-store";
+} from "@/lib/products/input";
+import * as store from "@/lib/products/store";
 
 async function run(
   operation: () => Promise<string | undefined>,

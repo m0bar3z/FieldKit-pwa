@@ -5,12 +5,12 @@ import {
   PlusIcon,
 } from "lucide-react";
 import { withAuthentication } from "@/components/auth/authenticated-page";
-import { NoteCard } from "@/components/fieldkit/content-cards";
-import { EmptyItems } from "@/components/fieldkit/empty-items";
-import { LinkButton } from "@/components/fieldkit/link-button";
-import { OnlineIndicator } from "@/components/fieldkit/online-indicator";
-import { PageHeading } from "@/components/fieldkit/page-heading";
-import { TaskCollection } from "@/components/fieldkit/product-collections";
+import { EmptyItems } from "@/components/fieldkit/feedback/empty-items";
+import { PageHeading } from "@/components/fieldkit/layout/page-heading";
+import { LinkButton } from "@/components/fieldkit/navigation/link-button";
+import { NoteCard } from "@/components/fieldkit/notes/note-card";
+import { OnlineIndicator } from "@/components/fieldkit/pwa/online-indicator";
+import { TaskCollection } from "@/components/fieldkit/tasks/task-collection";
 import {
   Card,
   CardAction,
@@ -18,7 +18,7 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
-import { getWorkspace } from "@/lib/product-queries";
+import { getWorkspace } from "@/lib/products/queries";
 
 async function Home() {
   const workspace = await getWorkspace();

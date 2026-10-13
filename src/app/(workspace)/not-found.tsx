@@ -1,4 +1,4 @@
-import { LinkButton } from "@/components/fieldkit/link-button";
+import { LinkButton } from "@/components/fieldkit/navigation/link-button";
 import {
   Empty,
   EmptyContent,

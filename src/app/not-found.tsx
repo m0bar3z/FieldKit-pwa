@@ -1,4 +1,4 @@
-import { EmptyItems } from "@/components/fieldkit/empty-items";
+import { EmptyItems } from "@/components/fieldkit/feedback/empty-items";
 
 export default function NotFound() {
   return (

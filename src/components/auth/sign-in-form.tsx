@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import type { SignInState } from "@/lib/auth-input";
+import type { SignInState } from "@/lib/auth/input";
 
 const initialState: SignInState = {};
 

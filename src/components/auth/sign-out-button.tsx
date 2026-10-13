@@ -3,11 +3,11 @@
 import { unstable_rethrow } from "next/navigation";
 import { useActionState, useRef } from "react";
 import { signOut } from "@/app/login/actions";
-import { useWorkspaceFeedback } from "@/components/fieldkit/workspace-feedback";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
-import type { SignInState } from "@/lib/auth-input";
+import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
+import type { SignInState } from "@/lib/auth/input";
 
 const initialState: SignInState = {};
 

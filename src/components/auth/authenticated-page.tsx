@@ -1,8 +1,8 @@
 import "server-only";
 
 import { type ComponentType, createElement, Suspense } from "react";
-import { WorkspaceLoading } from "@/components/fieldkit/workspace-loading";
-import { requireUser } from "@/lib/auth";
+import { WorkspaceLoading } from "@/components/fieldkit/layout/workspace-loading";
+import { requireUser } from "@/lib/auth/session";
 
 // Each page owns its session boundary so it also applies below shared layouts.
 export function withAuthentication<Props extends object>(

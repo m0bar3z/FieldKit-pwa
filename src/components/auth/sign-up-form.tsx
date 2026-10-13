@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import type { SignUpState } from "@/lib/auth-input";
+import type { SignUpState } from "@/lib/auth/input";
 
 const initialState: SignUpState = {};
 

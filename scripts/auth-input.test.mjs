@@ -5,7 +5,7 @@ import {
   safeReturnPath,
   validateSignIn,
   validateSignUp,
-} from "../src/lib/auth-input.ts";
+} from "../src/lib/auth/input.ts";
 
 test("return paths stay inside known workspace routes", () => {
   for (const path of ["/tasks", "/notes", "/tasks/new", "/notes/note_1"]) {

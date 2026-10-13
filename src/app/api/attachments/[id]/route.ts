@@ -2,11 +2,11 @@ import { unstable_rethrow } from "next/navigation";
 import {
   ATTACHMENT_BUCKET,
   MAX_ATTACHMENT_BYTES,
-} from "@/lib/attachment-input";
-import { getOwnedAttachment } from "@/lib/attachment-store";
-import { getCurrentUser } from "@/lib/auth";
-import { isProductId } from "@/lib/product-input";
-import { ProductOperationError } from "@/lib/product-store";
+} from "@/lib/attachments/input";
+import { getOwnedAttachment } from "@/lib/attachments/store";
+import { getCurrentUser } from "@/lib/auth/session";
+import { isProductId } from "@/lib/products/input";
+import { ProductOperationError } from "@/lib/products/store";
 import { createAuthClient } from "@/lib/supabase/server";
 
 export async function GET(

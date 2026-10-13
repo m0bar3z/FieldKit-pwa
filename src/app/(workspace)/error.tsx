@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { LinkButton } from "@/components/fieldkit/link-button";
+import { LinkButton } from "@/components/fieldkit/navigation/link-button";
 import { Button } from "@/components/ui/button";
 import {
   Empty,

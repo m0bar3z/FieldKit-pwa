@@ -5,6 +5,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { eq, sql } from "drizzle-orm";
 import { readMigrationFiles } from "drizzle-orm/migrator";
 import { drizzle } from "drizzle-orm/pglite";
+import * as schema from "../src/lib/database/schema";
 import {
   ProductInputError,
   readCompleted,
@@ -12,9 +13,8 @@ import {
   readProductId,
   readTask,
   readVersion,
-} from "../src/lib/product-input";
-import * as store from "../src/lib/product-store";
-import * as schema from "../src/lib/schema";
+} from "../src/lib/products/input";
+import * as store from "../src/lib/products/store";
 
 const actorA = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 const actorB = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb";

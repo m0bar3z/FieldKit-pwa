@@ -2,12 +2,12 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
 import {
   registrationCallbackUrl,
   type SignUpState,
   validateSignUp,
-} from "@/lib/auth-input";
+} from "@/lib/auth/input";
+import { getCurrentUser } from "@/lib/auth/session";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { createAuthClient } from "@/lib/supabase/server";
 

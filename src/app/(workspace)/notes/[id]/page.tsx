@@ -1,10 +1,10 @@
 import { BookOpenIcon } from "lucide-react";
 import { notFound } from "next/navigation";
 import { withAuthentication } from "@/components/auth/authenticated-page";
-import { Attachments } from "@/components/fieldkit/attachments";
-import { DeleteDialog } from "@/components/fieldkit/delete-dialog";
-import { EditItemDialog } from "@/components/fieldkit/editors";
-import { PageHeading } from "@/components/fieldkit/page-heading";
+import { Attachments } from "@/components/fieldkit/attachments/attachments";
+import { DeleteDialog } from "@/components/fieldkit/editors/delete-dialog";
+import { EditItemDialog } from "@/components/fieldkit/editors/edit-item-dialog";
+import { PageHeading } from "@/components/fieldkit/layout/page-heading";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -14,8 +14,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { isProductId } from "@/lib/product-input";
-import { getWorkspace } from "@/lib/product-queries";
+import { isProductId } from "@/lib/products/input";
+import { getWorkspace } from "@/lib/products/queries";
 
 async function NotePage({ params }: PageProps<"/notes/[id]">) {
   const { id } = await params;

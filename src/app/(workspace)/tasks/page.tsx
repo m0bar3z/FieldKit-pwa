@@ -1,10 +1,10 @@
 import { PlusIcon } from "lucide-react";
 import type { Metadata } from "next";
 import { withAuthentication } from "@/components/auth/authenticated-page";
-import { LinkButton } from "@/components/fieldkit/link-button";
-import { PageHeading } from "@/components/fieldkit/page-heading";
-import { TaskCollection } from "@/components/fieldkit/product-collections";
-import { getWorkspace } from "@/lib/product-queries";
+import { PageHeading } from "@/components/fieldkit/layout/page-heading";
+import { LinkButton } from "@/components/fieldkit/navigation/link-button";
+import { TaskCollection } from "@/components/fieldkit/tasks/task-collection";
+import { getWorkspace } from "@/lib/products/queries";
 
 export const metadata: Metadata = { title: "Tasks" };
 

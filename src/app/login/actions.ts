@@ -5,7 +5,7 @@ import {
   type SignInState,
   safeReturnPath,
   validateSignIn,
-} from "@/lib/auth-input";
+} from "@/lib/auth/input";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { createAuthClient } from "@/lib/supabase/server";
 

@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth/session";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 
 export const metadata: Metadata = { title: "Create account" };

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { withAuthentication } from "@/components/auth/authenticated-page";
-import { NewItemEditor } from "@/components/fieldkit/editors";
-import { PageHeading } from "@/components/fieldkit/page-heading";
+import { NewItemEditor } from "@/components/fieldkit/editors/new-item-editor";
+import { PageHeading } from "@/components/fieldkit/layout/page-heading";
 
 export const metadata: Metadata = { title: "New task" };
 

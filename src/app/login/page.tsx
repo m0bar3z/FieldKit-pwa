@@ -12,8 +12,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getCurrentUser } from "@/lib/auth";
-import { safeReturnPath } from "@/lib/auth-input";
+import { safeReturnPath } from "@/lib/auth/input";
+import { getCurrentUser } from "@/lib/auth/session";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 
 export const metadata: Metadata = { title: "Sign in" };

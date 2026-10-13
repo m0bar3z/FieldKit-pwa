@@ -8,22 +8,22 @@ import {
   attachmentKey,
   validateAttachmentBytes,
   validateAttachmentFile,
-} from "@/lib/attachment-input";
+} from "@/lib/attachments/input";
 import {
   cancelAttachment,
   finishAttachment,
   getOwnedAttachment,
   markAttachmentRemoved,
   reserveAttachment,
-} from "@/lib/attachment-store";
-import { requireUser } from "@/lib/auth";
+} from "@/lib/attachments/store";
+import { requireUser } from "@/lib/auth/session";
 import {
   type ProductActionState,
   ProductInputError,
   readProductId,
   readVersion,
-} from "@/lib/product-input";
-import { ProductOperationError } from "@/lib/product-store";
+} from "@/lib/products/input";
+import { ProductOperationError } from "@/lib/products/store";
 import { createAuthClient } from "@/lib/supabase/server";
 
 function failure(error: unknown): ProductActionState {
