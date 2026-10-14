@@ -1,13 +1,11 @@
 import type { Route } from "next";
 import { validationFields } from "@/lib/forms/validation";
-import { signInSchema, signUpSchema } from "./schemas";
+import { signInSchema } from "./schemas";
 
 export type SignInState = {
   error?: string;
   errors?: { email?: string; password?: string };
 };
-
-export type SignUpState = SignInState & { message?: string };
 
 export function safeReturnPath(value: unknown): Route {
   return typeof value === "string" &&
@@ -40,20 +38,4 @@ function validateCredentials(formData: FormData, schema: typeof signInSchema) {
 
 export function validateSignIn(formData: FormData) {
   return validateCredentials(formData, signInSchema);
-}
-
-export function validateSignUp(formData: FormData) {
-  return validateCredentials(formData, signUpSchema);
-}
-
-export function registrationCallbackUrl(origin: string | null) {
-  if (!origin) return null;
-  try {
-    const url = new URL(origin);
-    if (!["http:", "https:"].includes(url.protocol) || url.origin !== origin)
-      return null;
-    return new URL("/auth/callback", url).href;
-  } catch {
-    return null;
-  }
 }

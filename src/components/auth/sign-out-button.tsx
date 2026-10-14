@@ -1,52 +1,39 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { unstable_rethrow } from "next/navigation";
-import { useRef } from "react";
-import { useForm } from "react-hook-form";
-import { signOut } from "@/app/login/actions";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
-import { emptyFormSchema } from "@/lib/forms/schemas";
-import { runServerAction } from "@/lib/forms/server-action";
-import { setServerErrors } from "@/lib/forms/server-errors";
+import { apiRequest } from "@/lib/api/client";
 
 export function SignOutButton() {
-  const form = useForm({
-    resolver: zodResolver(emptyFormSchema),
-    defaultValues: {},
-  });
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
   const submitting = useRef(false);
-  const pending = form.formState.isSubmitting;
-  const error = form.formState.errors.root?.server?.message;
-
-  async function handleSubmit() {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     if (submitting.current) return;
     submitting.current = true;
+    setPending(true);
+    setError("");
     try {
-      const result = await runServerAction(signOut);
-      setServerErrors(form.setError, result);
+      await apiRequest("/api/auth/session", { method: "DELETE" });
+      window.location.assign("/login");
     } catch (error) {
-      unstable_rethrow(error);
-      form.setError("root.server", {
-        message: "Unable to sign out. Please try again.",
-      });
-    } finally {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to sign out. Please try again.",
+      );
+      setPending(false);
       submitting.current = false;
     }
   }
-
   return (
     <form
-      noValidate
       className="flex flex-col gap-1"
       aria-busy={pending}
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (pending || submitting.current) return;
-        void form.handleSubmit(handleSubmit)();
-      }}
+      onSubmit={handleSubmit}
     >
       <Button
         type="submit"

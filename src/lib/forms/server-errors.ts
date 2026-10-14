@@ -1,9 +1,9 @@
 import type { FieldValues, Path, UseFormSetError } from "react-hook-form";
-import type { ServerFormState } from "./types";
+import type { FormResponse } from "./types";
 
 export function setServerErrors<T extends FieldValues>(
   setError: UseFormSetError<T>,
-  result: ServerFormState,
+  result: FormResponse,
 ): boolean {
   const fields = Object.entries(result.fields ?? result.errors ?? {}).filter(
     (entry): entry is [string, string] => Boolean(entry[1]),

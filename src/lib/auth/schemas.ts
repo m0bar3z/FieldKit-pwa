@@ -13,7 +13,4 @@ export const signInSchema = z.object({
   // Password whitespace is intentional and must never be normalized.
   password,
 });
-export const signUpSchema = signInSchema.extend({
-  password: password.min(8, "Use at least 8 characters."),
-});
 export type Credentials = z.infer<typeof signInSchema>;
