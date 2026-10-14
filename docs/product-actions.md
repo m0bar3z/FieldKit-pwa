@@ -1,59 +1,43 @@
-# Core product actions
+# In-memory product API
 
-Tasks and notes are saved through authenticated server actions in one personal
-workspace. The dashboard at `/` shows due-today, overdue, and note counts, task
-lists, and recent notes. `/tasks` and `/notes` list all owned active items and link
-to creation and detail pages. No project selection is required.
+Tasks and notes live in one personal demo workspace. Next.js Route Handlers read
+and modify the arrays in `src/lib/memory/store.ts`. No database, migrations,
+Supabase client, or product Server Actions are required.
 
-Tasks can be searched by title/description and filtered by completion or due-date
-status; notes can be searched by title/content. Empty search results are distinct
-from an empty workspace. Dashboard counts use active owned records, independently
-of search filters. Detail pages accept database-generated IDs and show stored
-attachment metadata and the next pending task reminder.
+| Endpoint | Methods | Purpose |
+| --- | --- | --- |
+| `/api/workspace?timeZone=Asia%2FTehran` | GET | UI-ready tasks, notes, attachment metadata, and dashboard counts |
+| `/api/tasks` | GET, POST | List task records or create a task |
+| `/api/tasks/[id]` | GET, PATCH, DELETE | Read, edit, or delete a task |
+| `/api/tasks/[id]/completion` | PATCH | Change completion |
+| `/api/notes` | GET, POST | List note records or create a note |
+| `/api/notes/[id]` | GET, PATCH, DELETE | Read, edit, or delete a note |
 
-Due dates are calendar dates and never shift with time zones. The browser saves
-its IANA time zone in a preference cookie so the server can group due dates using
-the user's local day and display reminder instants in that same zone. Before the
-browser supplies this preference, UTC is used. Pages refresh when the foreground
-local day or time zone changes. Reminder editing and delivery are not implemented.
+Product writes accept JSON. A task has `title`, `description`, and `dueDate`; a
+note has `title` and `content`. Edit/delete requests include `version` as a string
+(e.g. `"1"`). Completion accepts a boolean `completed` plus the version string.
+IDs come from the route URL. New records receive UUIDs, timestamps, and version 1;
+changes increment the version. Stale writes return HTTP 409; missing items return
+404. Client and server use shared Zod schemas.
 
-Apply the existing numbered migrations in `drizzle/` before using these actions.
-The personal workspace requires migrations 0000–0006, including the attachment
-storage setup in 0005 and project retirement in 0006. Existing items are preserved.
-See `authentication.md` for Supabase configuration and database permissions, and
-`attachments.md` for private storage setup and file operations.
+The dashboard, lists, and detail components use `useWorkspace` to fetch
+`/api/workspace`. Successful form submissions announce success and trigger a
+refetch. Search/filtering stays in the client. Requests have loading, error,
+retry, and empty states. Each form retains its own async submit handler and
+React Hook Form/Zod validation; failed saves retain inputs. No unsaved-change
+confirmation or automatic draft storage is implemented.
 
-Shared Zod schemas validate titles, text lengths, calendar dates, IDs, versions,
-and completion values in the browser and again in authenticated server actions.
-Ownership comes from the verified session and RLS. Stale edits, completion changes,
-and deletes are rejected rather than overwriting a newer version.
+Due dates remain calendar dates. The browser sends its IANA time zone so the API
+calculates overdue/today status consistently. The workspace clock refreshes API
+data when the local day or time zone changes. Reminder editing/delivery and
+IndexedDB/offline mutations remain TODOs.
 
-Each form configures React Hook Form and the Zod resolver and owns its async submit
-handler. React Hook Form tracks submission state and field errors. Failed saves
-preserve entries and map server validation errors back to fields; general failures
-appear in the form's error summary.
+Deleting an item marks it and its attachments deleted; related file bytes are
+released. Deleted records stay in the arrays but are hidden from GET responses.
+There is no restore action. Files are otherwise managed through the attachment
+API described in `attachments.md`.
 
-Forms show saving/deleting indicators and inline errors. Workspace feedback shows
-dismissible success notices. Submit handlers prevent concurrent writes, and
-successful creation/deletion keeps submission disabled while navigating. Dialogs
-close after successful saves and cannot be dismissed while saving.
-
-Unsaved-change tracking and navigation/unload confirmations have been removed.
-Cancel and navigation discard edits without prompting. Drafts are not persisted
-to browser storage; the clock can refresh pages when the local day/time zone changes.
-
-Workspace pages show loading skeletons, retryable loading errors, contextual
-empty/search-result states, and a missing-item page for unavailable IDs.
-
-Deletion is a soft delete with no restore UI. Deleting a task or note also marks
-its attachment metadata (and task reminders) as deleted in one transaction.
-Existing deleted metadata keeps its original deletion timestamps. Deleted records
-disappear from pages; database triggers maintain timestamps and versions. Storage
-objects are retained by task/note deletion; explicit attachment removal deletes
-its stored file. No automatic cleanup or synchronization is implemented. Item
-locks serialize edits, completion, deletion, and attachment publication.
-
-Run `pnpm test:product` to exercise input validation and actual PostgreSQL
-transactions, ownership policies, stale writes, deletion, and rollback in an
-isolated PGlite database. It does not connect to Supabase or alter remote data.
-Reminder editing and PWA features remain separate.
+Data is temporary and shared by every session of the single demo account.
+Restarting the Node.js process empties the arrays. Separate processes/serverless
+instances have independent stores, so use one local Node.js instance for a
+consistent PWA learning session.

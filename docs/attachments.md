@@ -1,43 +1,21 @@
-# Basic attachments
+# In-memory attachments
 
-Create a task or note, open its detail page, choose **Add file**, and select a
-file. Upload it, download it, or remove it after confirming the deletion. A failed
-upload keeps the file selected for retry. Uploads and removals show pending,
-success, and error feedback and block duplicate submissions. React Hook Form uses
-a shared Zod schema for selection, metadata, and parent identity; the server repeats
-validation and separately checks the actual file bytes. File inputs remain selected
-after failed uploads.
+Open a task or note and choose **Add file**. Files are uploaded with
+`POST /api/attachments` using multipart fields `kind`, `parentId`, and `file`.
+`GET /api/attachments/[id]` downloads the file; `DELETE /api/attachments/[id]`
+removes it with a JSON `version` string. All routes require a demo session and
+check that the parent task/note is still active.
 
-Supported types are JPEG, PNG, WebP, GIF, PDF, and UTF-8 plain text. Files must be
-non-empty and at most 3 MiB (3,145,728 bytes). The client checks size, extension,
-and MIME type; the server repeats these checks, verifies file signatures or UTF-8
-text, and rejects filenames containing paths/control characters or exceeding
-255 characters. Downloads are served as attachments with `nosniff` and no caching.
+Metadata and bytes are held in the attachment array in `src/lib/memory/store.ts`.
+No storage bucket, external service, or environment configuration is required.
+Restarting the server loses the files along with tasks, notes, and sessions.
 
-Apply `drizzle/0005_attachment_storage.sql` through the existing migration runner
-after migrations 0000–0004. It creates the private `fieldkit-attachments` bucket,
-enforces the same size/type limits, and adds Storage RLS. No extra environment
-variables or service-role key are needed: Storage uses the verified user's
-Supabase session. Apply `0006_personal_workspace.sql` afterward to permit uploads
-for personal tasks and notes without a project.
+Supported types are JPEG, PNG, WebP, GIF, PDF, and UTF-8 text, with a 3 MiB maximum
+per file. Client Zod validation checks selection, filename, extension, MIME type,
+and size. The server repeats validation and checks file signatures or UTF-8
+bytes. Invalid uploads are never added to the array. Failed uploads keep the file
+selected for retry. Downloads use attachment disposition, nosniff, and no-store.
 
-Object keys are `<auth-user-id>/<tasks-or-notes>/<item-id>/<attachment-id>`.
-Storage reads/deletes are restricted to that user's namespace; uploads also
-require owned pending metadata and an active task or note. A restrictive
-ownership policy protects this bucket even if broader policies are added later.
-Objects cannot be overwritten. Server operations additionally check ownership,
-active parents, canonical keys, and removal versions through authenticated
-database transactions.
-
-An upload reserves metadata with a null storage key, uploads outside database
-transactions, then checks/locks the active parent again before publishing the
-key. Pending rows are hidden from pages. Failures attempt to delete any uploaded
-object and soft-delete pending metadata. Interrupted requests or failed cleanup
-can leave private orphan files/pending rows; automatic background cleanup is not
-part of this feature.
-
-Explicit file removal deletes the storage object before marking its metadata as
-deleted. A failed storage deletion leaves metadata intact; a failed metadata
-write can be retried against the same object key. Task/note
-deletion still retains storage objects, while hiding their metadata. Offline
-blobs, queued uploads, synchronization, and previews are not implemented.
+Removing a file soft-deletes its metadata and releases its bytes. Deleting its
+parent does the same. Version checks reject stale removals. Offline blobs,
+queued uploads, synchronization, and previews remain separate PWA tasks.
