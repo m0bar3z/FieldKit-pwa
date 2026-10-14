@@ -1,4 +1,3 @@
-export const ATTACHMENT_BUCKET = "fieldkit-attachments";
 export const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024;
 export const ATTACHMENT_ACCEPT = ".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt";
 export const ATTACHMENT_HELP =

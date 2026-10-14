@@ -2,10 +2,9 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Route } from "next";
-import { unstable_rethrow, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { createNote, createTask } from "@/app/(workspace)/actions";
 import {
   Card,
   CardContent,
@@ -22,9 +21,13 @@ import {
 } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
-import { toFormData } from "@/lib/forms/form-data";
-import { runServerAction } from "@/lib/forms/server-action";
+import {
+  ApiRequestError,
+  apiRequest,
+  refreshWorkspace,
+} from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
+import type { FormResponse } from "@/lib/forms/types";
 import { itemFormValues } from "@/lib/products/form-values";
 import { type ItemFormValues, itemFormSchema } from "@/lib/products/schemas";
 import { ProductForm } from "../forms/product-form";
@@ -46,18 +49,26 @@ export function NewItemEditor({ kind }: { kind: "task" | "note" }) {
     if (submitting.current || navigating) return;
     submitting.current = true;
     try {
-      const action = kind === "task" ? createTask : createNote;
-      const result = await runServerAction(() =>
-        action({}, toFormData(values)),
+      const result = await apiRequest<FormResponse>(
+        `/api/${kind === "task" ? "tasks" : "notes"}`,
+        {
+          method: "POST",
+          body: JSON.stringify(values),
+        },
       );
-      if (setServerErrors(form.setError, result)) return;
+      if (!result.destination) refreshWorkspace();
+
       if (result.success) notify(result.success);
+
       if (result.destination) {
         setNavigating(true);
         router.push(result.destination as Route);
       }
     } catch (error) {
-      unstable_rethrow(error);
+      if (error instanceof ApiRequestError) {
+        setServerErrors(form.setError, error.result);
+        return;
+      }
       form.setError("root.server", {
         message: "Unable to save changes. Please try again.",
       });

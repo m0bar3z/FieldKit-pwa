@@ -1,65 +1,39 @@
-import { unstable_rethrow } from "next/navigation";
+import { ApiError } from "@/lib/api/errors";
 import {
-  ATTACHMENT_BUCKET,
-  MAX_ATTACHMENT_BYTES,
-} from "@/lib/attachments/input";
-import { getOwnedAttachment } from "@/lib/attachments/store";
+  apiFailure,
+  apiRoute,
+  privateHeaders,
+  readJson,
+} from "@/lib/api/server";
+import { getAttachment, removeAttachment } from "@/lib/attachments/store";
 import { getCurrentUser } from "@/lib/auth/session";
-import { isProductId } from "@/lib/products/input";
-import { ProductOperationError } from "@/lib/products/store";
-import { createAuthClient } from "@/lib/supabase/server";
+import { identitySchema, productIdSchema } from "@/lib/products/schemas";
 
-export async function GET(
-  _request: Request,
-  { params }: RouteContext<"/api/attachments/[id]">,
-) {
-  const headers = { "Cache-Control": "private, no-store" };
-  const user = await getCurrentUser();
-  if (!user)
-    return Response.json(
-      { error: "Sign in to download files." },
-      { status: 401, headers },
-    );
-  const { id } = await params;
-  if (!isProductId(id))
-    return Response.json(
-      { error: "This file is unavailable." },
-      { status: 404, headers },
-    );
+type Context = { params: Promise<{ id: string }> };
+export async function GET(_request: Request, { params }: Context) {
   try {
-    const attachment = await getOwnedAttachment(id, user.id);
-    if (
-      !attachment.storageKey ||
-      attachment.byteSize > BigInt(MAX_ATTACHMENT_BYTES)
-    )
-      throw new ProductOperationError("This file is unavailable.");
-    const client = await createAuthClient();
-    const { data, error } = await client.storage
-      .from(ATTACHMENT_BUCKET)
-      .download(attachment.storageKey);
-    if (error || !data)
-      return Response.json(
-        { error: "Unable to download this file. Please try again." },
-        { status: 502, headers },
-      );
-    return new Response(data, {
+    if (!(await getCurrentUser()))
+      throw new ApiError("Sign in to download files.", 401);
+    const attachment = getAttachment(productIdSchema.parse((await params).id));
+    return new Response(new Blob([new Uint8Array(attachment.bytes)]), {
       headers: {
-        ...headers,
+        ...privateHeaders,
         "Content-Type": "application/octet-stream",
-        "Content-Disposition": `attachment; filename="attachment"; filename*=UTF-8''${encodeURIComponent(attachment.fileName).replace(/['()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`)}`,
+        "Content-Disposition": `attachment; filename="attachment"; filename*=UTF-8''${encodeURIComponent(attachment.name).replace(/['()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`)}`,
         "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (error) {
-    unstable_rethrow(error);
-    return Response.json(
-      {
-        error:
-          error instanceof ProductOperationError
-            ? error.message
-            : "Unable to download this file. Please try again.",
-      },
-      { status: error instanceof ProductOperationError ? 404 : 500, headers },
-    );
+    return apiFailure(error);
   }
+}
+export async function DELETE(request: Request, { params }: Context) {
+  return apiRoute(request, async () => {
+    const id = productIdSchema.parse((await params).id);
+    const input = identitySchema
+      .omit({ id: true })
+      .parse(await readJson(request));
+    removeAttachment(id, Number(input.version));
+    return { success: "File removed." };
+  });
 }

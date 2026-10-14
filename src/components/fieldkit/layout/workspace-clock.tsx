@@ -1,11 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { refreshWorkspace } from "@/lib/api/client";
 import { calendarDateAt, TIME_ZONE_COOKIE } from "@/lib/products/presentation";
 
 export function WorkspaceClock() {
-  const router = useRouter();
   useEffect(() => {
     let previousDay = "";
     function updateClock() {
@@ -19,7 +18,7 @@ export function WorkspaceClock() {
         document.cookie = `${cookie}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
       }
       if (changedZone || (previousDay && previousDay !== today))
-        router.refresh();
+        refreshWorkspace();
       previousDay = today;
     }
     updateClock();
@@ -32,6 +31,6 @@ export function WorkspaceClock() {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [router]);
+  }, []);
   return null;
 }

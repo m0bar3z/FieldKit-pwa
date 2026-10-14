@@ -3,7 +3,6 @@ import { attachmentMetadataSchema } from "./schemas";
 
 export {
   ATTACHMENT_ACCEPT,
-  ATTACHMENT_BUCKET,
   ATTACHMENT_HELP,
   MAX_ATTACHMENT_BYTES,
 } from "./constants";
@@ -49,13 +48,4 @@ export function validateAttachmentBytes(bytes: Uint8Array, mime: string) {
       throw new AttachmentInputError("Text files must use UTF-8 encoding.");
     }
   }
-}
-
-export function attachmentKey(
-  authId: string,
-  kind: "task" | "note",
-  parentId: string,
-  id: string,
-) {
-  return `${authId}/${kind === "task" ? "tasks" : "notes"}/${parentId}/${id}`;
 }

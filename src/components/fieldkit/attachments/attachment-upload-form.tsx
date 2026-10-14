@@ -1,11 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { unstable_rethrow } from "next/navigation";
 import { useId, useRef } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import type { z } from "zod";
-import { uploadAttachment } from "@/app/(workspace)/attachment-actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,13 +16,18 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
 import {
+  ApiRequestError,
+  apiRequest,
+  refreshWorkspace,
+} from "@/lib/api/client";
+import {
   ATTACHMENT_ACCEPT,
   ATTACHMENT_HELP,
 } from "@/lib/attachments/constants";
 import { uploadAttachmentSchema } from "@/lib/attachments/schemas";
 import { toFormData } from "@/lib/forms/form-data";
-import { runServerAction } from "@/lib/forms/server-action";
 import { setServerErrors } from "@/lib/forms/server-errors";
+import type { FormResponse } from "@/lib/forms/types";
 
 export function AttachmentUploadForm({
   kind,
@@ -50,14 +53,18 @@ export function AttachmentUploadForm({
     if (submitting.current) return;
     submitting.current = true;
     try {
-      const result = await runServerAction(() =>
-        uploadAttachment({}, toFormData(values)),
-      );
-      if (setServerErrors(form.setError, result)) return;
+      const result = await apiRequest<FormResponse>("/api/attachments", {
+        method: "POST",
+        body: toFormData(values),
+      });
+      refreshWorkspace();
       if (result.success) notify(result.success);
       close();
     } catch (error) {
-      unstable_rethrow(error);
+      if (error instanceof ApiRequestError) {
+        setServerErrors(form.setError, error.result);
+        return;
+      }
       form.setError("root.server", {
         message: "Upload failed. Please try again.",
       });

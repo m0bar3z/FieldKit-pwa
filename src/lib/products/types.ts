@@ -36,3 +36,17 @@ export type Note = {
   updated: string;
   attachments: Attachment[];
 };
+
+export type Workspace = {
+  tasks: Task[];
+  notes: Note[];
+  today: string;
+  timeZone: string;
+  counts: {
+    dueToday: number;
+    overdue: number;
+    completedTasks: number;
+    openTasks: number;
+    notes: number;
+  };
+};

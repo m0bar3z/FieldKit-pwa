@@ -3,11 +3,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trash2Icon } from "lucide-react";
 import type { Route } from "next";
-import { unstable_rethrow, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
-import { deleteItem } from "@/app/(workspace)/actions";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -20,9 +19,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
-import { toFormData } from "@/lib/forms/form-data";
-import { runServerAction } from "@/lib/forms/server-action";
+import {
+  ApiRequestError,
+  apiRequest,
+  refreshWorkspace,
+} from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
+import type { FormResponse } from "@/lib/forms/types";
 import { deleteItemSchema } from "@/lib/products/schemas";
 import { ProductForm } from "../forms/product-form";
 import { SaveButton } from "../forms/save-button";
@@ -52,10 +55,14 @@ export function DeleteDialog({
     if (submitting.current || navigating) return;
     submitting.current = true;
     try {
-      const result = await runServerAction(() =>
-        deleteItem({}, toFormData(values)),
+      const result = await apiRequest<FormResponse>(
+        `/api/${kind === "task" ? "tasks" : "notes"}/${values.id}`,
+        {
+          method: "DELETE",
+          body: JSON.stringify({ version: values.version }),
+        },
       );
-      if (setServerErrors(form.setError, result)) return;
+      if (!result.destination) refreshWorkspace();
       if (result.success) notify(result.success);
       setOpen(false);
       if (result.destination) {
@@ -63,7 +70,10 @@ export function DeleteDialog({
         router.push(result.destination as Route);
       }
     } catch (error) {
-      unstable_rethrow(error);
+      if (error instanceof ApiRequestError) {
+        setServerErrors(form.setError, error.result);
+        return;
+      }
       form.setError("root.server", {
         message: "Unable to delete this item. Please try again.",
       });

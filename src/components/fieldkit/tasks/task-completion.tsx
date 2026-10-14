@@ -1,17 +1,19 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { unstable_rethrow } from "next/navigation";
 import { useId, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
-import { toggleTaskCompletion } from "@/app/(workspace)/actions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
 import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
-import { toFormData } from "@/lib/forms/form-data";
-import { runServerAction } from "@/lib/forms/server-action";
+import {
+  ApiRequestError,
+  apiRequest,
+  refreshWorkspace,
+} from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
+import type { FormResponse } from "@/lib/forms/types";
 import { completionSchema } from "@/lib/products/schemas";
 import type { Task } from "@/lib/products/types";
 
@@ -39,13 +41,23 @@ export function TaskCompletion({
     if (submitting.current) return;
     submitting.current = true;
     try {
-      const result = await runServerAction(() =>
-        toggleTaskCompletion({}, toFormData(values)),
+      const result = await apiRequest<FormResponse>(
+        `/api/tasks/${values.id}/completion`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            version: values.version,
+            completed: values.completed,
+          }),
+        },
       );
-      if (setServerErrors(form.setError, result)) return;
+      refreshWorkspace();
       if (result.success) notify(result.success);
     } catch (error) {
-      unstable_rethrow(error);
+      if (error instanceof ApiRequestError) {
+        setServerErrors(form.setError, error.result);
+        return;
+      }
       form.setError("root.server", {
         message: "Unable to update this task. Please try again.",
       });

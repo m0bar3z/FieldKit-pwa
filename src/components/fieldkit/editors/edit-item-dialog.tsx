@@ -2,10 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PencilIcon } from "lucide-react";
-import { unstable_rethrow } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { updateNote, updateTask } from "@/app/(workspace)/actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,9 +16,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
-import { toFormData } from "@/lib/forms/form-data";
-import { runServerAction } from "@/lib/forms/server-action";
+import {
+  ApiRequestError,
+  apiRequest,
+  refreshWorkspace,
+} from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
+import type { FormResponse } from "@/lib/forms/types";
 import { itemFormValues } from "@/lib/products/form-values";
 import { type ItemFormValues, itemFormSchema } from "@/lib/products/schemas";
 import type { Note, Task } from "@/lib/products/types";
@@ -42,15 +44,21 @@ export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
     if (submitting.current) return;
     submitting.current = true;
     try {
-      const action = task ? updateTask : updateNote;
-      const result = await runServerAction(() =>
-        action({}, toFormData(values)),
+      const result = await apiRequest<FormResponse>(
+        `/api/${kind === "task" ? "tasks" : "notes"}/${values.id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(values),
+        },
       );
-      if (setServerErrors(form.setError, result)) return;
+      refreshWorkspace();
       if (result.success) notify(result.success);
       setOpen(false);
     } catch (error) {
-      unstable_rethrow(error);
+      if (error instanceof ApiRequestError) {
+        setServerErrors(form.setError, error.result);
+        return;
+      }
       form.setError("root.server", {
         message: "Unable to save changes. Please try again.",
       });
