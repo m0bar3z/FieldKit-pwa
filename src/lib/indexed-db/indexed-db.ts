@@ -1,4 +1,6 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: The upgrade event provides a versionchange transaction. */
+import type { IndexedDbAction } from "./enums";
+
 const DB_NAME = "fieldkit";
 const DB_VERSION = 4;
 const NOTES_NAME = "notes";
@@ -100,7 +102,7 @@ export const findFromStore = <T>(
   });
 };
 
-export const findNotesByAction = <T>(action: string) => {
+export const findNotesByAction = <T>(action: IndexedDbAction) => {
   return execute<T[]>("notes", "readonly", (store) => {
     const index = store.index("by_action");
 

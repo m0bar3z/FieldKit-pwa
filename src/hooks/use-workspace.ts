@@ -6,6 +6,10 @@ import {
   apiRequest,
   WORKSPACE_CHANGED,
 } from "@/lib/api/client";
+import {
+  IndexedDbAction,
+  type IndexedDbRecordType,
+} from "@/lib/indexed-db/enums";
 import { findNotesByAction } from "@/lib/indexed-db/indexed-db";
 import type { ItemFormValues } from "@/lib/products/schemas";
 import type { Note, Workspace } from "@/lib/products/types";
@@ -15,7 +19,8 @@ type StoredItemSubmission = {
   createdAt: number;
   value: {
     kind: "note" | "task";
-    action: "CREATE";
+    action: IndexedDbAction.Create;
+    recordType: IndexedDbRecordType.PendingChange;
     payload: ItemFormValues;
   };
 };
@@ -41,8 +46,9 @@ export function useWorkspace() {
         });
         if (controller.signal.aborted) return;
 
-        const offlineNotes =
-          await findNotesByAction<StoredItemSubmission>("CREATE");
+        const offlineNotes = await findNotesByAction<StoredItemSubmission>(
+          IndexedDbAction.Create,
+        );
         if (controller.signal.aborted) return;
 
         const pendingNotes = offlineNotes.flatMap<Note>((item) => {

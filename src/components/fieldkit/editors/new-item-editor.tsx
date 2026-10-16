@@ -29,6 +29,7 @@ import {
 } from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
 import type { FormResponse } from "@/lib/forms/types";
+import { IndexedDbAction, IndexedDbRecordType } from "@/lib/indexed-db/enums";
 import { addToStore } from "@/lib/indexed-db/indexed-db";
 import { itemFormValues } from "@/lib/products/form-values";
 import { type ItemFormValues, itemFormSchema } from "@/lib/products/schemas";
@@ -76,8 +77,8 @@ export function NewItemEditor({ kind }: { kind: "task" | "note" }) {
         await addToStore("notes", {
           payload: values,
           kind,
-          action: "CREATE",
-          recordType: "pending-change",
+          action: IndexedDbAction.Create,
+          recordType: IndexedDbRecordType.PendingChange,
         });
 
         setNavigating(true);
