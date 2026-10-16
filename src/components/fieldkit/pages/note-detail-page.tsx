@@ -21,9 +21,12 @@ import { WorkspaceDataState } from "../feedback/workspace-data-state";
 
 export function NoteDetailPage({ id }: { id: string }) {
   const { workspace, error, retry } = useWorkspace();
+
   if (error || !workspace)
     return <WorkspaceDataState error={error} retry={retry} />;
+
   const note = workspace.notes.find((item) => item.id === id);
+
   if (!note) notFound();
   return (
     <>
