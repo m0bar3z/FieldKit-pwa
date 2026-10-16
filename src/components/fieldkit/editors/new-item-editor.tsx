@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import {
   ApiRequestError,
   apiRequest,
@@ -28,6 +29,7 @@ import {
 } from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
 import type { FormResponse } from "@/lib/forms/types";
+import { addToStore } from "@/lib/indexed-db/indexed-db";
 import { itemFormValues } from "@/lib/products/form-values";
 import { type ItemFormValues, itemFormSchema } from "@/lib/products/schemas";
 import { ProductForm } from "../forms/product-form";
@@ -45,24 +47,43 @@ export function NewItemEditor({ kind }: { kind: "task" | "note" }) {
   const router = useRouter();
   const [navigating, setNavigating] = useState(false);
 
+  const isOnline = useOnlineStatus();
+
   async function handleSubmit(values: ItemFormValues) {
     if (submitting.current || navigating) return;
     submitting.current = true;
     try {
-      const result = await apiRequest<FormResponse>(
-        `/api/${kind === "task" ? "tasks" : "notes"}`,
-        {
-          method: "POST",
-          body: JSON.stringify(values),
-        },
-      );
-      if (!result.destination) refreshWorkspace();
+      const stringifiedValues = JSON.stringify(values);
 
-      if (result.success) notify(result.success);
+      if (isOnline) {
+        const result = await apiRequest<FormResponse>(
+          `/api/${kind === "task" ? "tasks" : "notes"}`,
+          {
+            method: "POST",
+            body: stringifiedValues,
+          },
+        );
 
-      if (result.destination) {
+        if (!result.destination) refreshWorkspace();
+
+        if (result.success) notify(result.success);
+
+        if (result.destination) {
+          setNavigating(true);
+          router.push(result.destination as Route);
+        }
+      } else {
+        await addToStore("notes", {
+          payload: values,
+          kind,
+          action: "CREATE",
+          recordType: "pending-change",
+        });
+
         setNavigating(true);
-        router.push(result.destination as Route);
+        router.push("/notes");
+
+        notify("Completed!");
       }
     } catch (error) {
       if (error instanceof ApiRequestError) {
