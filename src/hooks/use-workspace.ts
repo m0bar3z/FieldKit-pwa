@@ -57,7 +57,8 @@ export function useWorkspace() {
 
           return [
             {
-              id: `local-note-${item.id}`,
+              id: item.id.toString(),
+              localId: item.id,
               title: payload.title,
               content: payload.content,
               excerpt: payload.content.slice(0, 240),

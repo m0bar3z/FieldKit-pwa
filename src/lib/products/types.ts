@@ -28,6 +28,8 @@ export type Task = {
 
 export type Note = {
   id: string;
+  /** IndexedDB identity for a note that has not been saved to the server. */
+  localId?: number;
   title: string;
   content: string;
   excerpt: string;
