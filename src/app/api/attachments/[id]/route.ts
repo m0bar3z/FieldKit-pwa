@@ -1,3 +1,4 @@
+import { simulateApiDelay } from "@/lib/api/delay";
 import { ApiError } from "@/lib/api/errors";
 import {
   apiFailure,
@@ -12,6 +13,7 @@ import { identitySchema, productIdSchema } from "@/lib/products/schemas";
 type Context = { params: Promise<{ id: string }> };
 export async function GET(_request: Request, { params }: Context) {
   try {
+    await simulateApiDelay();
     if (!(await getCurrentUser()))
       throw new ApiError("Sign in to download files.", 401);
     const attachment = getAttachment(productIdSchema.parse((await params).id));

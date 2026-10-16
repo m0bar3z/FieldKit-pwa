@@ -4,6 +4,10 @@ Tasks and notes live in one personal demo workspace. Next.js Route Handlers read
 and modify the arrays in `src/lib/memory/store.ts`. No database, migrations,
 Supabase client, or product Server Actions are required.
 
+Every API request includes a simulated random delay of 1–3 seconds, including
+authentication and file downloads. The delay is implemented in
+`src/lib/api/delay.ts`.
+
 | Endpoint | Methods | Purpose |
 | --- | --- | --- |
 | `/api/workspace?timeZone=Asia%2FTehran` | GET | UI-ready tasks, notes, attachment metadata, and dashboard counts |

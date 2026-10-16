@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { simulateApiDelay } from "@/lib/api/delay";
 import {
   apiFailure,
   checkOrigin,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/auth/session";
 
 export async function GET() {
+  await simulateApiDelay();
   const user = await getCurrentUser();
   return jsonResponse(
     user ? { user } : { error: "Sign in to continue." },
@@ -22,6 +24,7 @@ export async function GET() {
 }
 export async function DELETE(request: Request) {
   try {
+    await simulateApiDelay();
     checkOrigin(request);
     removeSession((await cookies()).get(SESSION_COOKIE)?.value);
     const response = NextResponse.json(

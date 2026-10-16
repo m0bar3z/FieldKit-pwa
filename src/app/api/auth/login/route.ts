@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { simulateApiDelay } from "@/lib/api/delay";
 import { ApiError } from "@/lib/api/errors";
 import {
   apiFailure,
@@ -20,6 +21,7 @@ import {
 
 export async function POST(request: Request) {
   try {
+    await simulateApiDelay();
     checkOrigin(request);
     const body = await readJson(request);
     const credentials = signInSchema

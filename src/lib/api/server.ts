@@ -4,6 +4,7 @@ import { z } from "zod";
 import { AttachmentInputError } from "@/lib/attachments/input";
 import { getCurrentUser } from "@/lib/auth/session";
 import { validationFields } from "@/lib/forms/validation";
+import { simulateApiDelay } from "./delay";
 import { ApiError } from "./errors";
 
 export const privateHeaders = { "Cache-Control": "private, no-store" };
@@ -23,6 +24,7 @@ export async function apiRoute(
   operation: () => unknown | Promise<unknown>,
 ) {
   try {
+    await simulateApiDelay();
     if (!["GET", "HEAD"].includes(request.method)) checkOrigin(request);
     if (!(await getCurrentUser()))
       throw new ApiError("Sign in to continue.", 401);
