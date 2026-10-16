@@ -35,9 +35,11 @@ credentials are defined in `src/lib/auth/demo-account.ts`.
 - Web app manifest/icons, Serwist registration/caching and offline fallback,
   online/offline indicators, update prompts, and installation guidance.
 
-IndexedDB persistence, offline product editing, drafts, cloud synchronization,
-and reminder delivery are future learning tasks. API reads alone do not provide
-an offline-editable database.
+Edits to existing notes are saved in IndexedDB and synchronized on startup,
+reconnection, and after saving while the app is open. Cached API reads are
+overlaid with local edits. Offline-created notes can be read locally; syncing
+new notes, offline task changes, unsaved drafts, and reminder delivery remain
+future learning tasks.
 
 ## Demo backend limitations
 
@@ -81,6 +83,7 @@ src/app/sw.ts                   # Serwist worker configuration
 | `pnpm lint:fix` | Safe Biome fixes |
 | `pnpm typecheck` | Next.js route types and TypeScript checks |
 | `pnpm test:auth` | Login input validation checks |
+| `pnpm test:note-sync` | Note edit persistence, retry, and conflict checks |
 | `pnpm test:tooling` | Git workflow checks |
 
 For phone testing, use a trusted HTTPS deployment/tunnel or a certificate trusted
