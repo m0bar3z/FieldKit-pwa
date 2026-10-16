@@ -18,7 +18,8 @@
     "prepare": "node .husky/install.mjs",
     "branch:check": "node scripts/check-branch.mjs",
     "test:tooling": "node --test scripts/git-workflow.test.mjs",
-    "test:auth": "node --import tsx --test scripts/auth-input.test.mjs"
+    "test:auth": "node --import tsx --test scripts/auth-input.test.mjs",
+    "test:note-sync": "node --conditions=react-server --import tsx --test scripts/note-sync.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
