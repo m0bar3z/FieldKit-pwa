@@ -25,3 +25,13 @@ demoGlobal.fieldkitDemoStore ??= {
   sessions: [],
 };
 export const memory = demoGlobal.fieldkitDemoStore;
+
+// Preserve existing demo data across development reloads from ISO date storage.
+function timestamp(value: number | string): number {
+  return typeof value === "string" ? Date.parse(value) : value;
+}
+for (const item of [...memory.tasks, ...memory.notes, ...memory.attachments]) {
+  item.createdAt = timestamp(item.createdAt);
+  item.updatedAt = timestamp(item.updatedAt);
+  if (item.deletedAt !== null) item.deletedAt = timestamp(item.deletedAt);
+}

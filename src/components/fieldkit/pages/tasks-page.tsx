@@ -25,7 +25,7 @@ export function TasksPage() {
           </LinkButton>
         }
       />
-      <TaskCollection tasks={tasks} />
+      <TaskCollection tasks={tasks} timeZone={workspace.timeZone} />
     </>
   );
 }

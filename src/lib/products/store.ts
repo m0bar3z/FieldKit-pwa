@@ -7,7 +7,7 @@ import type { ItemMetadata, NoteRecord, TaskRecord } from "@/lib/memory/types";
 import type { noteSchema, taskSchema } from "./schemas";
 
 function metadata(): ItemMetadata {
-  const now = new Date().toISOString();
+  const now = Date.now();
   return {
     id: crypto.randomUUID(),
     version: 1,
@@ -27,7 +27,7 @@ function checkVersion(item: ItemMetadata, version: number) {
     throw new ApiError("This item changed. Refresh and try again.", 409);
 }
 function touch(item: ItemMetadata) {
-  item.updatedAt = new Date().toISOString();
+  item.updatedAt = Date.now();
   item.version += 1;
 }
 export function getTask(id: string) {
@@ -85,7 +85,7 @@ export function setTaskCompleted(
 export function deleteItem(kind: "task" | "note", id: string, version: number) {
   const item = getItem(kind, id);
   checkVersion(item, version);
-  item.deletedAt = new Date().toISOString();
+  item.deletedAt = Date.now();
   touch(item);
   // Keep deletion metadata for future sync, but release the attachment bytes now.
   for (const attachment of memory.attachments) {

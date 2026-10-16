@@ -88,7 +88,10 @@ export function DashboardPage() {
           aria-label="Your task list"
           className="flex min-w-0 flex-col gap-5"
         >
-          <TaskCollection tasks={workspace.tasks} />
+          <TaskCollection
+            tasks={workspace.tasks}
+            timeZone={workspace.timeZone}
+          />
         </section>
         <div className="flex min-w-0 flex-col gap-6">
           <section
@@ -112,7 +115,11 @@ export function DashboardPage() {
               />
             )}
             {workspace.notes.slice(0, 3).map((note) => (
-              <NoteCard key={note.id} note={note} />
+              <NoteCard
+                key={note.id}
+                note={note}
+                timeZone={workspace.timeZone}
+              />
             ))}
           </section>
         </div>

@@ -9,9 +9,12 @@ import { WorkspaceDataState } from "../feedback/workspace-data-state";
 
 export function NotesPage() {
   const { workspace, error, retry } = useWorkspace();
+
   if (error || !workspace)
     return <WorkspaceDataState error={error} retry={retry} />;
+
   const { notes } = workspace;
+
   return (
     <>
       <PageHeading
@@ -25,7 +28,7 @@ export function NotesPage() {
           </LinkButton>
         }
       />
-      <NoteCollection notes={notes} />
+      <NoteCollection notes={notes} timeZone={workspace.timeZone} />
     </>
   );
 }

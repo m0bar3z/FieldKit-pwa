@@ -36,7 +36,15 @@ export function formatDueDate(value: string): string {
     : "No due date";
 }
 
-export function formatReminder(instant: Date, timeZone: string): string {
+export function formatNoteUpdated(timestamp: number, timeZone: string): string {
+  return `Updated ${formatDueDate(calendarDateAt(new Date(timestamp), timeZone))}`;
+}
+
+export function formatReminder(
+  timestamp: number | null,
+  timeZone: string,
+): string {
+  if (timestamp === null) return "No reminder set";
   return new Intl.DateTimeFormat("en-US", {
     timeZone,
     month: "short",
@@ -45,7 +53,7 @@ export function formatReminder(instant: Date, timeZone: string): string {
     hour: "numeric",
     minute: "2-digit",
     timeZoneName: "short",
-  }).format(instant);
+  }).format(timestamp);
 }
 
 export function taskGroup(

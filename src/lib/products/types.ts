@@ -20,10 +20,9 @@ export type Task = {
   version: number;
   completed: boolean;
   dueDate: string;
-  dueLabel: string;
   group: TaskGroup;
-  reminderAt: string | null;
-  reminderLabel: string;
+  /** Unix timestamp in milliseconds, or null when no reminder is set. */
+  reminderAt: number | null;
   attachments: Attachment[];
 };
 
@@ -33,7 +32,8 @@ export type Note = {
   content: string;
   excerpt: string;
   version: number;
-  updated: string;
+  /** Unix timestamp in milliseconds. */
+  updated: number;
   attachments: Attachment[];
 };
 

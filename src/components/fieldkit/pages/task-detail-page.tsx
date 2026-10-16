@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { formatDueDate, formatReminder } from "@/lib/products/presentation";
 import { WorkspaceDataState } from "../feedback/workspace-data-state";
 
 export function TaskDetailPage({ id }: { id: string }) {
@@ -76,7 +77,7 @@ export function TaskDetailPage({ id }: { id: string }) {
               <CalendarDaysIcon className="mt-0.5 size-4 text-muted-foreground" />
               <div>
                 <p className="text-xs text-muted-foreground">Due date</p>
-                <p className="mt-1 text-sm">{task.dueLabel}</p>
+                <p className="mt-1 text-sm">{formatDueDate(task.dueDate)}</p>
               </div>
             </div>
             {/* TODO(product): Allow reminders to be set, edited, and removed. */}
@@ -85,7 +86,9 @@ export function TaskDetailPage({ id }: { id: string }) {
               <BellIcon className="mt-0.5 size-4 text-muted-foreground" />
               <div>
                 <p className="text-xs text-muted-foreground">Reminder</p>
-                <p className="mt-1 text-sm">{task.reminderLabel}</p>
+                <p className="mt-1 text-sm">
+                  {formatReminder(task.reminderAt, workspace.timeZone)}
+                </p>
               </div>
             </div>
             <Separator />

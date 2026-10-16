@@ -17,7 +17,13 @@ import { EmptyItems } from "../feedback/empty-items";
 import { SearchControls } from "../forms/search-controls";
 import { TaskList } from "./task-list";
 
-export function TaskCollection({ tasks }: { tasks: Task[] }) {
+export function TaskCollection({
+  tasks,
+  timeZone,
+}: {
+  tasks: Task[];
+  timeZone: string;
+}) {
   const [query, setQuery] = useState(""),
     [status, setStatus] = useState<TaskFilter>("all");
   const filtered = filterTasks(tasks, query, status);
@@ -56,7 +62,7 @@ export function TaskCollection({ tasks }: { tasks: Task[] }) {
               </CardAction>
             </CardHeader>
             <CardContent>
-              <TaskList tasks={section.tasks} />
+              <TaskList tasks={section.tasks} timeZone={timeZone} />
             </CardContent>
           </Card>
         ))

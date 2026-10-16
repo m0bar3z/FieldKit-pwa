@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { formatNoteUpdated } from "@/lib/products/presentation";
 import { WorkspaceDataState } from "../feedback/workspace-data-state";
 
 export function NoteDetailPage({ id }: { id: string }) {
@@ -29,7 +30,7 @@ export function NoteDetailPage({ id }: { id: string }) {
       <PageHeading
         eyebrow="Note"
         title={note.title}
-        description={note.updated}
+        description={formatNoteUpdated(note.updated, workspace.timeZone)}
         back={{ href: "/notes", label: "All notes" }}
         actions={<EditItemDialog note={note} />}
       />

@@ -7,7 +7,13 @@ import { EmptyItems } from "../feedback/empty-items";
 import { SearchControls } from "../forms/search-controls";
 import { NoteCard } from "./note-card";
 
-export function NoteCollection({ notes }: { notes: Note[] }) {
+export function NoteCollection({
+  notes,
+  timeZone,
+}: {
+  notes: Note[];
+  timeZone: string;
+}) {
   const [query, setQuery] = useState("");
   const filtered = notes.filter((note) =>
     matchesSearch(query, note.title, note.content),
@@ -21,7 +27,7 @@ export function NoteCollection({ notes }: { notes: Note[] }) {
       {filtered.length ? (
         <div className="grid gap-5 md:grid-cols-2">
           {filtered.map((note) => (
-            <NoteCard key={note.id} note={note} />
+            <NoteCard key={note.id} note={note} timeZone={timeZone} />
           ))}
         </div>
       ) : (

@@ -8,9 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatNoteUpdated } from "@/lib/products/presentation";
 import type { Note } from "@/lib/products/types";
 
-export function NoteCard({ note }: { note: Note }) {
+export function NoteCard({ note, timeZone }: { note: Note; timeZone: string }) {
   return (
     <Card className="h-full">
       <CardHeader>
@@ -32,7 +33,9 @@ export function NoteCard({ note }: { note: Note }) {
         </p>
       </CardContent>
       <CardFooter className="mt-auto justify-between gap-2">
-        <span className="text-xs text-muted-foreground">{note.updated}</span>
+        <span className="text-xs text-muted-foreground">
+          {formatNoteUpdated(note.updated, timeZone)}
+        </span>
         <Link
           href={`/notes/${note.id}`}
           aria-label={`Read ${note.title}`}

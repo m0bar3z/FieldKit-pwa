@@ -1,21 +1,15 @@
 import "server-only";
 
 import { memory } from "@/lib/memory/store";
-import {
-  calendarDateAt,
-  formatDueDate,
-  normalizeTimeZone,
-  taskGroup,
-} from "./presentation";
+import { calendarDateAt, normalizeTimeZone, taskGroup } from "./presentation";
 import type { Attachment, Note, Task, Workspace } from "./types";
 
 export function getWorkspace(zone?: string): Workspace {
   const timeZone = normalizeTimeZone(zone);
   const today = calendarDateAt(new Date(), timeZone);
-  const sorted = <T extends { updatedAt: string; id: string }>(items: T[]) =>
+  const sorted = <T extends { updatedAt: number; id: string }>(items: T[]) =>
     [...items].sort(
-      (a, b) =>
-        b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id),
+      (a, b) => b.updatedAt - a.updatedAt || b.id.localeCompare(a.id),
     );
   function attachments(kind: "task" | "note", parentId: string): Attachment[] {
     return memory.attachments
@@ -48,10 +42,8 @@ export function getWorkspace(zone?: string): Workspace {
     description: item.description,
     completed: item.completed,
     dueDate: item.dueDate,
-    dueLabel: formatDueDate(item.dueDate),
     group: taskGroup(item, today),
     reminderAt: null,
-    reminderLabel: "No reminder set",
     attachments: attachments("task", item.id),
   }));
   const notes: Note[] = sorted(
@@ -62,7 +54,7 @@ export function getWorkspace(zone?: string): Workspace {
     title: item.title,
     content: item.content,
     excerpt: item.content.slice(0, 240),
-    updated: `Updated ${formatDueDate(calendarDateAt(new Date(item.updatedAt), timeZone))}`,
+    updated: item.updatedAt,
     attachments: attachments("note", item.id),
   }));
   return {

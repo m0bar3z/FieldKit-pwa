@@ -1,9 +1,10 @@
 export type ItemMetadata = {
   id: string;
   version: number;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
+  /** Unix timestamps in milliseconds. */
+  createdAt: number;
+  updatedAt: number;
+  deletedAt: number | null;
 };
 export type TaskRecord = ItemMetadata & {
   title: string;

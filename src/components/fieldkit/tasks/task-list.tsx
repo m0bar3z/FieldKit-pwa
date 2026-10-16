@@ -6,11 +6,18 @@ import {
 } from "lucide-react";
 import { WorkspaceLink as Link } from "@/components/fieldkit/navigation/workspace-link";
 import { Separator } from "@/components/ui/separator";
+import { formatDueDate, formatReminder } from "@/lib/products/presentation";
 import type { Task } from "@/lib/products/types";
 import { cn } from "@/lib/shared/utils";
 import { TaskCompletion } from "./task-completion";
 
-export function TaskList({ tasks }: { tasks: Task[] }) {
+export function TaskList({
+  tasks,
+  timeZone,
+}: {
+  tasks: Task[];
+  timeZone: string;
+}) {
   return (
     <div className="flex flex-col">
       {tasks.map((task, index) => {
@@ -40,12 +47,12 @@ export function TaskList({ tasks }: { tasks: Task[] }) {
                     )}
                   >
                     <CalendarDaysIcon className="size-3.5" />
-                    {task.dueLabel}
+                    {formatDueDate(task.dueDate)}
                   </span>
-                  {task.reminderAt && (
+                  {task.reminderAt !== null && (
                     <span className="inline-flex items-center gap-1">
                       <BellIcon className="size-3.5" />
-                      {task.reminderLabel}
+                      {formatReminder(task.reminderAt, timeZone)}
                     </span>
                   )}
                   {task.attachments.length > 0 && (

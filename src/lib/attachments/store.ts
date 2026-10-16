@@ -11,7 +11,7 @@ export function addAttachment(
   file: { name: string; mimeType: string; bytes: Uint8Array },
 ) {
   getItem(kind, parentId);
-  const now = new Date().toISOString();
+  const now = Date.now();
   const attachment: AttachmentRecord = {
     id: crypto.randomUUID(),
     version: 1,
@@ -38,7 +38,7 @@ export function removeAttachment(id: string, version: number) {
   const item = getAttachment(id);
   if (item.version !== version)
     throw new ApiError("This file changed. Refresh and try again.", 409);
-  item.deletedAt = new Date().toISOString();
+  item.deletedAt = Date.now();
   item.updatedAt = item.deletedAt;
   item.version += 1;
   item.bytes = new Uint8Array();
