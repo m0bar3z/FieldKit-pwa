@@ -1,3 +1,5 @@
+import type { NoteSyncStatus } from "@/lib/indexed-db/enums";
+
 export type Attachment = {
   id: string;
   version: number;
@@ -30,6 +32,8 @@ export type Note = {
   id: string;
   /** IndexedDB identity for a note that has not been saved to the server. */
   localId?: number;
+  syncStatus?: NoteSyncStatus;
+  syncError?: string;
   title: string;
   content: string;
   excerpt: string;

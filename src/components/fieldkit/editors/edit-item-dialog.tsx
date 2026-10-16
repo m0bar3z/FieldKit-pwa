@@ -24,6 +24,7 @@ import {
 import { setServerErrors } from "@/lib/forms/server-errors";
 import type { FormResponse } from "@/lib/forms/types";
 import { itemFormValues } from "@/lib/products/form-values";
+import { saveItem } from "@/lib/products/save-item";
 import { type ItemFormValues, itemFormSchema } from "@/lib/products/schemas";
 import type { Note, Task } from "@/lib/products/types";
 import { ProductForm } from "../forms/product-form";
@@ -34,6 +35,7 @@ export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
   const kind = task ? "task" : "note";
   const [open, setOpen] = useState(false);
   const { notify } = useWorkspaceFeedback();
+
   const form = useForm<ItemFormValues>({
     resolver: zodResolver(itemFormSchema),
     values: itemFormValues(kind, task ?? note),
@@ -43,17 +45,26 @@ export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
   async function handleSubmit(values: ItemFormValues) {
     if (submitting.current) return;
     submitting.current = true;
+
     try {
-      const result = await apiRequest<FormResponse>(
-        `/api/${kind === "task" ? "tasks" : "notes"}/${values.id}`,
-        {
-          method: "PATCH",
-          body: JSON.stringify(values),
-        },
-      );
-      refreshWorkspace();
-      if (result.success) notify(result.success);
-      setOpen(false);
+      if (values.kind === "note" && note) {
+        const result = await saveItem(note, values);
+        notify(result.success);
+        setOpen(false);
+      } else {
+        const result = await apiRequest<FormResponse>(
+          `/api/${kind === "task" ? "tasks" : "notes"}/${values.id}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify(values),
+          },
+        );
+        refreshWorkspace();
+
+        if (result.success) notify(result.success);
+
+        setOpen(false);
+      }
     } catch (error) {
       if (error instanceof ApiRequestError) {
         setServerErrors(form.setError, error.result);

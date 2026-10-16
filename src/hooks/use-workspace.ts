@@ -11,6 +11,8 @@ import {
   type IndexedDbRecordType,
 } from "@/lib/indexed-db/enums";
 import { findNotesByAction } from "@/lib/indexed-db/indexed-db";
+import { applyNoteEdits } from "@/lib/products/note-edits";
+import { readNoteEdits } from "@/lib/products/note-sync";
 import type { ItemFormValues } from "@/lib/products/schemas";
 import type { Note, Workspace } from "@/lib/products/types";
 
@@ -68,7 +70,11 @@ export function useWorkspace() {
             },
           ];
         });
-        const notes = [...data.notes, ...pendingNotes];
+        const notes = applyNoteEdits(
+          [...data.notes, ...pendingNotes],
+          await readNoteEdits(),
+        );
+        if (controller.signal.aborted) return;
 
         setWorkspace({
           ...data,
