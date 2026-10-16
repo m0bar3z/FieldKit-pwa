@@ -12,6 +12,7 @@ type MemoryStore = {
   notes: NoteRecord[];
   attachments: AttachmentRecord[];
   sessions: DemoSession[];
+  noteUpdateReceipts: Map<string, { fingerprint: string; item: NoteRecord }>;
 };
 const demoGlobal = globalThis as typeof globalThis & {
   fieldkitDemoStore?: MemoryStore;
@@ -23,8 +24,10 @@ demoGlobal.fieldkitDemoStore ??= {
   notes: [],
   attachments: [],
   sessions: [],
+  noteUpdateReceipts: new Map(),
 };
 export const memory = demoGlobal.fieldkitDemoStore;
+memory.noteUpdateReceipts ??= new Map();
 
 // Preserve existing demo data across development reloads from ISO date storage.
 function timestamp(value: number | string): number {

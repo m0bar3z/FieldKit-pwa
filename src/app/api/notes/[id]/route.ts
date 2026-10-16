@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { apiRoute, readJson } from "@/lib/api/server";
 import {
   identitySchema,
@@ -18,7 +19,18 @@ export async function PATCH(request: Request, { params }: Context) {
     const id = productIdSchema.parse((await params).id);
     const body = await readJson(request);
     const input = noteSchema.extend({ version: versionSchema }).parse(body);
-    const item = updateNote(id, Number(input.version), noteSchema.parse(input));
+    const operationKey = z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .parse(request.headers.get("Idempotency-Key") ?? undefined);
+    const item = updateNote(
+      id,
+      Number(input.version),
+      noteSchema.parse(input),
+      operationKey,
+    );
     return { success: "Note saved.", item };
   });
 }

@@ -64,11 +64,40 @@ export function updateNote(
   id: string,
   version: number,
   input: z.infer<typeof noteSchema>,
+  operationKey?: string,
 ) {
   const item = getNote(id);
+  const receiptKey = operationKey ? `${id}:${operationKey}` : undefined;
+  const fingerprint = JSON.stringify({
+    version,
+    title: input.title,
+    content: input.content,
+  });
+  const receipt = receiptKey
+    ? memory.noteUpdateReceipts.get(receiptKey)
+    : undefined;
+  if (receipt) {
+    if (receipt.fingerprint !== fingerprint)
+      throw new ApiError(
+        "This edit key was already used for different changes.",
+        409,
+      );
+    return { ...receipt.item };
+  }
   checkVersion(item, version);
   Object.assign(item, input);
   touch(item);
+  if (receiptKey) {
+    memory.noteUpdateReceipts.set(receiptKey, {
+      fingerprint,
+      item: { ...item },
+    });
+    // Match the bounded, process-local nature of the demo backend.
+    if (memory.noteUpdateReceipts.size > 500) {
+      const oldest = memory.noteUpdateReceipts.keys().next().value;
+      if (oldest !== undefined) memory.noteUpdateReceipts.delete(oldest);
+    }
+  }
   return item;
 }
 export function setTaskCompleted(
