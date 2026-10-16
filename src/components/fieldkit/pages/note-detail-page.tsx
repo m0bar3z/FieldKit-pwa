@@ -18,6 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { formatNoteUpdated } from "@/lib/products/presentation";
 import { WorkspaceDataState } from "../feedback/workspace-data-state";
+import { NoteSyncStatus } from "../notes/note-sync-status";
 
 export function NoteDetailPage({ id }: { id: string }) {
   const { workspace, error, retry } = useWorkspace();
@@ -30,6 +31,7 @@ export function NoteDetailPage({ id }: { id: string }) {
   if (!note) notFound();
   return (
     <>
+      <NoteSyncStatus note={note} />
       <PageHeading
         eyebrow="Note"
         title={note.title}
@@ -74,7 +76,6 @@ export function NoteDetailPage({ id }: { id: string }) {
           </CardContent>
         </Card>
       </div>
-      {/* TODO(PWA): Preserve note drafts locally and synchronize edits in a future phase. */}
     </>
   );
 }

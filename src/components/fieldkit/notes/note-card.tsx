@@ -19,6 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { NoteSyncStatus } from "@/lib/indexed-db/enums";
 import { formatNoteUpdated } from "@/lib/products/presentation";
 import type { Note } from "@/lib/products/types";
 
@@ -42,7 +43,9 @@ export function NoteCard({ note, timeZone }: { note: Note; timeZone: string }) {
           )}
         </CardTitle>
         <CardAction>
-          {isLocal ? (
+          {note.syncStatus === NoteSyncStatus.Failed ? (
+            <Badge variant="destructive">Sync failed</Badge>
+          ) : isLocal || note.syncStatus === NoteSyncStatus.Pending ? (
             <Badge variant="secondary">Pending sync</Badge>
           ) : (
             <BookOpenIcon className="size-4 text-muted-foreground" />

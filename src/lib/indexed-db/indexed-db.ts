@@ -8,9 +8,16 @@ const TASKS_NAME = "tasks";
 
 type StoreNames = typeof NOTES_NAME | typeof TASKS_NAME;
 
+export type StoredRecord<T> = {
+  id: string | number;
+  createdAt: number;
+  value: T;
+};
+
 const openDB = (storeName: string): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
+    let blocked = false;
 
     request.onupgradeneeded = () => {
       const db = request.result;
@@ -38,6 +45,10 @@ const openDB = (storeName: string): Promise<IDBDatabase> => {
     request.onsuccess = () => {
       const db = request.result;
 
+      if (blocked) {
+        db.close();
+        return;
+      }
       db.onversionchange = () => db.close();
 
       resolve(db);
@@ -48,7 +59,8 @@ const openDB = (storeName: string): Promise<IDBDatabase> => {
     };
 
     request.onblocked = () => {
-      console.warn("Close other tabs using this database.");
+      blocked = true;
+      reject(new Error("Close other FieldKit tabs to update local storage."));
     };
   });
 };
@@ -94,11 +106,53 @@ export const addToStore = <T>(storeName: StoreNames, value: T) => {
 
 export const findFromStore = <T>(
   storeName: StoreNames,
-  key: string,
-): { createdAt: number; value: T } => {
-  //@ts-expect-error unknown promise
-  return execute(storeName, "readonly", (store) => {
-    return store.get(key);
+  key: IDBValidKey,
+): Promise<StoredRecord<T> | undefined> => {
+  return execute<StoredRecord<T> | undefined>(
+    storeName,
+    "readonly",
+    (store) => {
+      return store.get(key);
+    },
+  );
+};
+
+export const getAllFromStore = <T>(storeName: StoreNames) =>
+  execute<StoredRecord<T>[]>(storeName, "readonly", (store) => store.getAll());
+
+// Read and replace a record in one transaction, including across browser tabs.
+export const modifyFromStore = async <T>(
+  storeName: StoreNames,
+  key: IDBValidKey,
+  change: (current: StoredRecord<T> | undefined) => StoredRecord<T> | undefined,
+): Promise<StoredRecord<T> | undefined> => {
+  const db = await openDB(storeName);
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readwrite");
+    const store = tx.objectStore(storeName);
+    const request = store.get(key);
+    let result: StoredRecord<T> | undefined;
+    let failure: unknown;
+    request.onsuccess = () => {
+      try {
+        result = change(request.result);
+        if (result) store.put(result);
+        else store.delete(key);
+      } catch (error) {
+        failure = error;
+        tx.abort();
+      }
+    };
+    tx.oncomplete = () => {
+      db.close();
+      resolve(result);
+    };
+    tx.onabort = () => {
+      db.close();
+      reject(
+        failure ?? tx.error ?? new Error("Local changes could not be saved."),
+      );
+    };
   });
 };
 

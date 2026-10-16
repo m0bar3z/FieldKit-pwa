@@ -21,7 +21,13 @@ export async function apiRequest<T>(
     credentials: "same-origin",
     cache: "no-store",
   });
-  const result = await response.json().catch(() => {
+  const result = await response.json().catch((error: unknown) => {
+    // A connection can fail after headers arrive, while reading the body.
+    if (
+      error instanceof TypeError ||
+      (error instanceof DOMException && error.name === "AbortError")
+    )
+      throw error;
     throw new Error("The server returned an unexpected response.");
   });
   if (!response.ok) throw new ApiRequestError(result, response.status);

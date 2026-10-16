@@ -1,7 +1,7 @@
 "use client";
 
 import { HouseIcon, MenuIcon, PlusIcon } from "lucide-react";
-import { type ReactNode, Suspense, useState } from "react";
+import { type ReactNode, Suspense, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -11,6 +11,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { startNoteSync } from "@/lib/products/note-sync";
 import { WorkspaceFeedback } from "../feedback/workspace-feedback";
 import { LinkButton } from "../navigation/link-button";
 import { MobileNavigation } from "../navigation/mobile-navigation";
@@ -29,6 +30,7 @@ export function AppShell({
 }) {
   // Navigation state is UI-only; it is never stored in cookies or browser storage.
   const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => startNoteSync(), []);
 
   return (
     <div className="min-h-dvh bg-background">
