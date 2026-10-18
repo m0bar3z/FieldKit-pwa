@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { CopyCredentialButton } from "@/components/auth/copy-credential-button";
 import { SignInForm } from "@/components/auth/sign-in-form";
 import {
   Card,
@@ -33,11 +34,16 @@ async function SignInContent({ searchParams }: PageProps<"/login">) {
         <SignInForm next={next} />
       </CardContent>
       <CardFooter className="flex-col items-start gap-2">
-        <p className="text-sm text-muted-foreground">
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
           Email: <code>{DEMO_ACCOUNT.email}</code>
+          <CopyCredentialButton label="email" value={DEMO_ACCOUNT.email} />
         </p>
-        <p className="text-sm text-muted-foreground">
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
           Password: <code>{DEMO_ACCOUNT.password}</code>
+          <CopyCredentialButton
+            label="password"
+            value={DEMO_ACCOUNT.password}
+          />
         </p>
       </CardFooter>
     </Card>
