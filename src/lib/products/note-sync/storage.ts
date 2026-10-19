@@ -1,3 +1,4 @@
+import { ApiRequestError } from "@/lib/api/client";
 import { IndexedDbRecordType, NoteSyncStatus } from "@/lib/indexed-db/enums";
 import { getAllFromStore, modifyFromStore } from "@/lib/indexed-db/indexed-db";
 import type { NoteRecord } from "@/lib/memory/types";
@@ -6,7 +7,6 @@ import {
   type NoteEditAttempt,
   type StoredNoteEdit,
 } from "../note-edits";
-import { isRetryableSyncError, retryDelay } from "./retry-policy";
 
 export async function readNoteEdits() {
   return (await getAllFromStore<unknown>("notes")).filter(isNoteEdit);
@@ -133,4 +133,19 @@ export async function resetNoteEditForRetry(id: string) {
 
 export async function removeNoteEdit(id: string) {
   await modifyFromStore<StoredNoteEdit>("notes", id, () => undefined);
+}
+
+function retryDelay(attempts: number) {
+  return Math.min(60_000, 1000 * 2 ** Math.min(attempts - 1, 6));
+}
+
+function isRetryableSyncError(error: unknown) {
+  if (error instanceof ApiRequestError)
+    return error.status >= 500 || error.status === 408 || error.status === 429;
+
+  return (
+    error instanceof TypeError ||
+    (error instanceof DOMException &&
+      (error.name === "TimeoutError" || error.name === "AbortError"))
+  );
 }
