@@ -16,6 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import {
   ApiRequestError,
   apiRequest,
@@ -34,6 +35,7 @@ import { ItemFields } from "./item-fields";
 export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
   const kind = task ? "task" : "note";
   const [open, setOpen] = useState(false);
+  const isOnline = useOnlineStatus();
   const { notify } = useWorkspaceFeedback();
 
   const form = useForm<ItemFormValues>({
@@ -44,12 +46,15 @@ export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
 
   async function handleSubmit(values: ItemFormValues) {
     if (submitting.current) return;
+
     submitting.current = true;
 
     try {
-      if (values.kind === "note" && note) {
+      if (values.kind === "note" && note && !isOnline) {
         const result = await saveItem(note, values);
+
         notify(result.success);
+
         setOpen(false);
       } else {
         const result = await apiRequest<FormResponse>(
@@ -59,6 +64,7 @@ export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
             body: JSON.stringify(values),
           },
         );
+
         refreshWorkspace();
 
         if (result.success) notify(result.success);
@@ -68,8 +74,10 @@ export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
     } catch (error) {
       if (error instanceof ApiRequestError) {
         setServerErrors(form.setError, error.result);
+
         return;
       }
+
       form.setError("root.server", {
         message: "Unable to save changes. Please try again.",
       });
@@ -77,6 +85,7 @@ export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
       submitting.current = false;
     }
   }
+
   return (
     <Dialog
       open={open}
@@ -94,6 +103,7 @@ export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
         <PencilIcon data-icon="inline-start" />
         Edit {kind}
       </DialogTrigger>
+
       <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Edit {kind}</DialogTitle>
@@ -101,6 +111,7 @@ export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
             Make a little room for a better plan.
           </DialogDescription>
         </DialogHeader>
+
         <ProductForm form={form} onSubmit={form.handleSubmit(handleSubmit)}>
           <ItemFields kind={kind} prefix={`edit-${kind}`} />
           <DialogFooter>
