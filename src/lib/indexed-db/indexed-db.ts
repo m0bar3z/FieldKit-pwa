@@ -127,28 +127,37 @@ export const modifyFromStore = async <T>(
   change: (current: StoredRecord<T> | undefined) => StoredRecord<T> | undefined,
 ): Promise<StoredRecord<T> | undefined> => {
   const db = await openDB(storeName);
+
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, "readwrite");
     const store = tx.objectStore(storeName);
     const request = store.get(key);
+
     let result: StoredRecord<T> | undefined;
     let failure: unknown;
+
     request.onsuccess = () => {
       try {
         result = change(request.result);
+
         if (result) store.put(result);
         else store.delete(key);
       } catch (error) {
         failure = error;
+
         tx.abort();
       }
     };
+
     tx.oncomplete = () => {
       db.close();
+
       resolve(result);
     };
+
     tx.onabort = () => {
       db.close();
+
       reject(
         failure ?? tx.error ?? new Error("Local changes could not be saved."),
       );

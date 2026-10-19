@@ -16,10 +16,12 @@ export async function saveItem(
 ) {
   const id = productIdSchema.parse(note.id);
   const payload = noteSchema.parse(input);
+
   await modifyFromStore<StoredNoteEdit>("notes", id, (current) => {
     const previous = current?.value;
     const baseline =
       previous && previous.note.version > note.version ? previous.note : note;
+
     return {
       id,
       createdAt: current?.createdAt ?? Date.now(),
@@ -39,12 +41,15 @@ export async function saveItem(
       },
     };
   });
+
   notifyNoteChanges();
+
   void syncPendingChanges().catch((error) =>
     console.warn(
       "Note edit is saved locally; synchronization will retry.",
       error,
     ),
   );
+
   return { success: "Note saved on this device." };
 }
