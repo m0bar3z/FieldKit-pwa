@@ -6,6 +6,7 @@ import {
 import { modifyFromStore } from "@/lib/indexed-db/indexed-db";
 import type { StoredNoteEdit } from "./note-edits";
 import { notifyNoteChanges, syncPendingChanges } from "./note-sync";
+import { requestNoteBackgroundSync } from "./note-sync/background-sync";
 import { noteSchema, productIdSchema } from "./schemas";
 import type { Note } from "./types";
 
@@ -43,6 +44,7 @@ export async function saveItem(
   });
 
   notifyNoteChanges();
+  void requestNoteBackgroundSync();
 
   void syncPendingChanges().catch((error) =>
     console.warn(

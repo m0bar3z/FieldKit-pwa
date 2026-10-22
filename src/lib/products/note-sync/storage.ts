@@ -12,6 +12,12 @@ export async function readNoteEdits() {
   return (await getAllFromStore<unknown>("notes")).filter(isNoteEdit);
 }
 
+export async function hasPendingNoteEdits() {
+  return (await readNoteEdits()).some(
+    (record) => record.value.status === NoteSyncStatus.Pending,
+  );
+}
+
 export async function prepareNoteEditAttempt(id: string) {
   // Preserve the submitted revision even when another edit arrives during upload.
   const record = await modifyFromStore<StoredNoteEdit>(

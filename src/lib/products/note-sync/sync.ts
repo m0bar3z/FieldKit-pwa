@@ -1,18 +1,15 @@
-import { apiRequest, refreshWorkspace } from "@/lib/api/client";
+import { refreshWorkspace } from "@/lib/api/client";
 import { NoteSyncStatus } from "@/lib/indexed-db/enums";
-import type { StoredRecord } from "@/lib/indexed-db/indexed-db";
-import type { NoteRecord } from "@/lib/memory/types";
-import type { NoteEditAttempt, StoredNoteEdit } from "../note-edits";
 import {
-  acknowledgeNoteEdit,
-  prepareNoteEditAttempt,
+  NOTE_SYNC_CHANGED,
+  requestNoteBackgroundSync,
+} from "./background-sync";
+import { processNoteSyncQueue, withNoteSyncLock } from "./engine";
+import {
   readNoteEdits,
-  recordNoteSyncFailure,
   removeNoteEdit,
   resetNoteEditForRetry,
 } from "./storage";
-
-const LOCK_NAME = "fieldkit-note-edits";
 
 type NoteSyncState = {
   running: Promise<void> | null;
@@ -38,13 +35,22 @@ export function notifyNoteChanges() {
 
 function unsubscribeFromNoteSyncEvents(onReconnect: () => void) {
   window.removeEventListener("online", onReconnect);
+  navigator.serviceWorker?.removeEventListener(
+    "message",
+    handleWorkerNoteChange,
+  );
 
   noteSyncState.channel?.close();
   noteSyncState.channel = undefined;
 }
 
 function handleReconnect() {
+  void requestNoteBackgroundSync();
   void runSync(true);
+}
+
+function handleWorkerNoteChange(event: MessageEvent<unknown>) {
+  if (event.data === NOTE_SYNC_CHANGED) handleNoteChange();
 }
 
 function handleNoteChange() {
@@ -65,12 +71,17 @@ export function startNoteSync() {
 
   if (noteSyncState.subscribers === 1) {
     window.addEventListener("online", handleReconnect);
+    navigator.serviceWorker?.addEventListener(
+      "message",
+      handleWorkerNoteChange,
+    );
 
     if (typeof BroadcastChannel !== "undefined") {
       noteSyncState.channel = new BroadcastChannel("fieldkit-note-edits");
       noteSyncState.channel.onmessage = handleNoteChange;
     }
 
+    void requestNoteBackgroundSync();
     void runSync(true);
   }
   return stopNoteSync;
@@ -97,7 +108,7 @@ export function syncPendingChanges(force = false): Promise<void> {
 
   cancelNoteSyncRetry();
 
-  noteSyncState.running = processNoteSyncQueue(force).finally(finishNoteSync);
+  noteSyncState.running = processPendingEdits(force).finally(finishNoteSync);
 
   return noteSyncState.running;
 }
@@ -110,98 +121,14 @@ async function runSync(force = false) {
   }
 }
 
-function isReadyToSync(record: StoredRecord<StoredNoteEdit>, force: boolean) {
-  return (
-    record.value.status === NoteSyncStatus.Pending &&
-    (force || record.value.nextAttemptAt <= Date.now())
-  );
-}
-
-async function syncQueuePass(force: boolean) {
-  let progressed = false;
-
-  const edits = (await readNoteEdits()).sort(
-    (a, b) => a.createdAt - b.createdAt,
-  );
-
-  for (const record of edits) {
-    if (!navigator.onLine) break;
-
-    if (!isReadyToSync(record, force)) continue;
-
-    if (await syncEdit(String(record.id))) progressed = true;
-  }
-  return progressed;
-}
-
-async function drainPendingEdits(force: boolean) {
-  let progressed = true;
-
-  while (progressed && navigator.onLine) {
-    progressed = await syncQueuePass(force);
-
-    // Reconnect/manual retry bypasses backoff only on the first pass.
-    force = false;
-  }
-}
-
 async function processPendingEdits(force: boolean) {
   do {
     noteSyncState.rescanRequested = false;
 
-    await drainPendingEdits(force);
+    await processNoteSyncQueue(force, notifyNoteChanges);
 
     force = false;
   } while (noteSyncState.rescanRequested && navigator.onLine);
-}
-
-async function withNoteSyncLock(
-  action: () => Promise<void>,
-  ifAvailable = false,
-) {
-  if (!navigator.locks) return action();
-
-  await navigator.locks.request(LOCK_NAME, { ifAvailable }, async (lock) => {
-    if (lock) await action();
-  });
-}
-
-function processNoteSyncQueue(force: boolean) {
-  return withNoteSyncLock(() => processPendingEdits(force), true);
-}
-
-async function uploadNoteEdit(id: string, attempt: NoteEditAttempt) {
-  const response = await apiRequest<{ item: NoteRecord }>(`/api/notes/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify({
-      ...attempt.payload,
-      version: String(attempt.version),
-    }),
-    signal: AbortSignal.timeout(15_000),
-  });
-  return response.item;
-}
-
-async function syncEdit(id: string) {
-  const attempt = await prepareNoteEditAttempt(id);
-
-  if (!attempt) return false;
-
-  try {
-    const item = await uploadNoteEdit(id, attempt);
-
-    await acknowledgeNoteEdit(id, attempt, item);
-
-    notifyNoteChanges();
-
-    return true;
-  } catch (error) {
-    await recordNoteSyncFailure(id, attempt, error);
-
-    notifyNoteChanges();
-
-    return false;
-  }
 }
 
 function cancelNoteSyncRetry() {
@@ -231,6 +158,7 @@ export async function retryNoteEdit(id: string) {
   await resetNoteEditForRetry(id);
 
   notifyNoteChanges();
+  void requestNoteBackgroundSync();
 
   await syncPendingChanges(true);
 }

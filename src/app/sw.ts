@@ -4,6 +4,8 @@
 import { defaultCache } from "@serwist/turbopack/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { Serwist } from "serwist";
+import { NOTE_SYNC_TAG } from "@/lib/products/note-sync/background-sync";
+import { syncNoteEditsInBackground } from "@/lib/products/note-sync/worker";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -36,3 +38,9 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+self.addEventListener("sync", (event) => {
+  if (event.tag === NOTE_SYNC_TAG) {
+    event.waitUntil(syncNoteEditsInBackground(self.clients));
+  }
+});
