@@ -42,12 +42,25 @@ overlaid onto cached workspace data. Tasks retain their direct API save path.
 New offline-created notes are displayed locally but are not synchronized by the
 note-edit queue.
 
-`note-sync.ts` runs after saving, at app startup, and on reconnect while the app
-is open. Network errors, timeouts, HTTP 408/429, and server failures retry with
-exponential backoff capped at 60 seconds. Authentication, validation, and version
-conflicts retain the local edit and offer retry/discard controls. Web Locks
-coordinate sync across supported browser tabs. Updates use the note's server
-version to detect conflicts. If the server saves an edit but its response is
+Note edits request service worker Background Sync where supported. Saving,
+startup, reconnection, and manual retry register the `fieldkit-note-edits` tag
+when pending edits exist. The service worker handles that tag with `waitUntil`,
+uploads the saved edits, and notifies open pages to refresh. Browser scheduling
+controls when background attempts run and whether they are retried; completion
+after closing the page is not guaranteed.
+
+Synchronization also runs after saving, at app startup, and on reconnect while
+the app is open, including when Background Sync is unavailable or registration
+fails. Its public entry point is `src/lib/products/note-sync/index.ts`.
+The page and worker share the queue processor in `note-sync/engine.ts` and the
+same IndexedDB records. Network errors, timeouts, HTTP 408/429, and server
+failures retain pending edits. Page retries use exponential backoff capped at
+60 seconds; background attempts bypass that delay on their first pass and reject
+while pending edits remain so the browser can retry. Authentication, validation,
+and version conflicts retain the local edit and offer retry/discard controls.
+Web Locks serialize uploads and discard operations across supported browser tabs
+and the service worker; a busy caller waits for the lock. Updates use the note's
+server version to detect conflicts. If the server saves an edit but its response is
 lost, retrying can report a version conflict; the local edit remains available
 for review. A synchronized note snapshot remains local so an older cached
 response cannot undo the acknowledged edit.
