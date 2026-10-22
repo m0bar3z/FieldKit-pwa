@@ -4,10 +4,27 @@ import test from "node:test";
 import vm from "node:vm";
 import { build } from "esbuild";
 
+const storagePlugin = {
+  name: "isolated-storage",
+  setup(plugin) {
+    plugin.onResolve({ filter: /indexed-db\/indexed-db$/ }, () => ({
+      path: "storage",
+      namespace: "test",
+    }));
+    plugin.onLoad({ filter: /.*/, namespace: "test" }, () => ({
+      contents: `
+        export const getAllFromStore = () => storage.read();
+        export const modifyFromStore = (...args) => storage.modify(...args);
+      `,
+    }));
+  },
+};
+
 const bundle = await build({
   stdin: {
     contents: `export { saveItem } from './src/lib/products/save-item';
       export * from './src/lib/products/note-sync';
+      export { requestNoteBackgroundSync } from './src/lib/products/note-sync/background-sync';
       export { applyNoteEdits } from './src/lib/products/note-edits';`,
     resolveDir: process.cwd(),
     loader: "ts",
@@ -17,19 +34,27 @@ const bundle = await build({
   format: "iife",
   globalName: "syncApi",
   platform: "browser",
+  plugins: [storagePlugin],
+});
+
+const workerBundle = await build({
+  entryPoints: ["src/app/sw.ts"],
+  bundle: true,
+  write: false,
+  format: "iife",
+  platform: "browser",
   plugins: [
+    storagePlugin,
     {
-      name: "isolated-storage",
+      name: "isolated-caching",
       setup(plugin) {
-        plugin.onResolve({ filter: /indexed-db\/indexed-db$/ }, () => ({
-          path: "storage",
-          namespace: "test",
-        }));
-        plugin.onLoad({ filter: /.*/, namespace: "test" }, () => ({
-          contents: `
-        export const getAllFromStore = () => storage.read();
-        export const modifyFromStore = (...args) => storage.modify(...args);
-      `,
+        plugin.onResolve(
+          { filter: /^(serwist|@serwist\/turbopack\/worker)$/ },
+          () => ({ path: "caching", namespace: "cache-test" }),
+        );
+        plugin.onLoad({ filter: /.*/, namespace: "cache-test" }, () => ({
+          contents: `export const defaultCache = [];
+            export class Serwist { addEventListeners() {} }`,
         }));
       },
     },
@@ -46,7 +71,15 @@ const originalNote = {
   attachments: [],
 };
 
-function engine({ records = new Map(), online = false, fetch: fetcher } = {}) {
+function engine({
+  records = new Map(),
+  online = false,
+  fetch: fetcher,
+  runtime = "page",
+  serviceWorker,
+  locks,
+  openClients = true,
+} = {}) {
   const state = {
     online,
     now: 1000,
@@ -54,11 +87,21 @@ function engine({ records = new Map(), online = false, fetch: fetcher } = {}) {
     requests: [],
     timers: new Map(),
     nextTimer: 0,
+    messages: [],
+    warnings: [],
   };
   const window = new EventTarget();
+  const worker = new EventTarget();
+  worker.clients = {
+    async matchAll() {
+      return openClients
+        ? [{ postMessage: (message) => state.messages.push(message) }]
+        : [];
+    },
+  };
   const context = vm.createContext({
-    console,
-    window,
+    console: { ...console, warn: (...args) => state.warnings.push(args) },
+    ...(runtime === "page" ? { window } : { self: worker }),
     Event,
     Headers,
     Response,
@@ -66,6 +109,8 @@ function engine({ records = new Map(), online = false, fetch: fetcher } = {}) {
     DOMException,
     TypeError,
     navigator: {
+      ...(serviceWorker ? { serviceWorker } : {}),
+      ...(locks ? { locks } : {}),
       get onLine() {
         return state.online;
       },
@@ -98,6 +143,8 @@ function engine({ records = new Map(), online = false, fetch: fetcher } = {}) {
       const request = {
         url,
         body: JSON.parse(options.body),
+        credentials: options.credentials,
+        method: options.method,
       };
       state.requests.push(request);
       return fetcher
@@ -112,12 +159,27 @@ function engine({ records = new Map(), online = false, fetch: fetcher } = {}) {
           });
     },
   });
-  vm.runInContext(bundle.outputFiles[0].text, context);
+  vm.runInContext(
+    (runtime === "page" ? bundle : workerBundle).outputFiles[0].text,
+    context,
+  );
   return {
     state,
     window,
     api: context.syncApi,
     edit: () => records.get(originalNote.id)?.value,
+    backgroundSync(tag = "fieldkit-note-edits") {
+      const event = new Event("sync");
+      let task;
+      Object.assign(event, {
+        tag,
+        waitUntil(promise) {
+          task = promise;
+        },
+      });
+      worker.dispatchEvent(event);
+      return task;
+    },
   };
 }
 
@@ -127,6 +189,24 @@ async function until(predicate) {
     await new Promise((resolve) => setImmediate(resolve));
   }
   assert.fail("Expected the synchronization state to settle");
+}
+
+function backgroundService({ supported = true, error } = {}) {
+  const container = new EventTarget();
+  const registrations = [];
+  container.ready = Promise.resolve(
+    supported
+      ? {
+          sync: {
+            async register(tag) {
+              if (error) throw error;
+              registrations.push(tag);
+            },
+          },
+        }
+      : {},
+  );
+  return { container, registrations };
 }
 
 test("offline edits are durable, coalesce, and overlay cached notes without duplicates", async () => {
@@ -311,6 +391,294 @@ test("startup and reconnection synchronize saved edits; manual retry can recover
   assert.equal(edit().status, "synced");
   assert.equal(state.requests.length, 2);
   stop();
+});
+
+test("saving offline registers background work, including after worker activation", async () => {
+  const service = backgroundService();
+  let activate;
+  service.container.ready = new Promise((resolve) => {
+    activate = resolve;
+  });
+  const page = engine({ serviceWorker: service.container });
+  await page.api.saveItem(originalNote, {
+    title: "Queued",
+    content: "Offline",
+  });
+  assert.equal(page.edit().status, "pending");
+  assert.equal(service.registrations.length, 0);
+
+  const active = backgroundService();
+  activate(await active.container.ready);
+  await until(() => active.registrations.length === 1);
+  assert.equal(active.registrations[0], "fieldkit-note-edits");
+  assert.equal(page.state.requests.length, 0);
+});
+
+test("startup and manual retry register existing pending edits, but not empty queues", async () => {
+  const saved = engine();
+  await saved.api.saveItem(originalNote, {
+    title: "Queued",
+    content: "Offline",
+  });
+  const service = backgroundService();
+  const page = engine({
+    records: saved.state.records,
+    serviceWorker: service.container,
+  });
+  const stop = page.api.startNoteSync();
+  await until(() => service.registrations.length === 1);
+  page.edit().status = "failed";
+  await page.api.retryNoteEdit(originalNote.id);
+  await until(() => service.registrations.length === 2);
+  assert.equal(page.edit().status, "pending");
+  await page.api.discardNoteEdit(originalNote.id);
+  await page.api.requestNoteBackgroundSync();
+  assert.equal(service.registrations.length, 2);
+  stop();
+});
+
+for (const options of [
+  { supported: false },
+  { error: new DOMException("Background sync disabled", "NotAllowedError") },
+]) {
+  test(`reconnect fallback works when background sync is ${options.error ? "denied" : "unsupported"}`, async () => {
+    const service = backgroundService(options);
+    const page = engine({ serviceWorker: service.container });
+    const stop = page.api.startNoteSync();
+    await page.api.saveItem(originalNote, {
+      title: "Fallback",
+      content: "Safe",
+    });
+    await page.api.requestNoteBackgroundSync();
+    assert.equal(page.edit().status, "pending");
+    page.state.online = true;
+    page.window.dispatchEvent(new Event("online"));
+    await page.api.syncPendingChanges();
+    assert.equal(page.edit().status, "synced");
+    assert.equal(page.state.requests.length, 1);
+    assert.equal(service.registrations.length, 0);
+    stop();
+  });
+}
+
+test("the service worker uploads persisted edits without page globals and notifies clients", async () => {
+  const saved = engine();
+  await saved.api.saveItem(originalNote, {
+    title: "Background",
+    content: "Edit",
+  });
+  const worker = engine({
+    runtime: "worker",
+    records: saved.state.records,
+    online: true,
+  });
+  assert.equal(worker.backgroundSync("another-feature"), undefined);
+  assert.equal(worker.state.requests.length, 0);
+  const task = worker.backgroundSync();
+  assert.ok(task, "The sync event must extend its lifetime with waitUntil");
+  await task;
+  assert.equal(worker.edit().status, "synced");
+  assert.equal(worker.edit().note.version, 2);
+  assert.equal(worker.state.requests[0].body.title, "Background");
+  assert.equal(worker.state.requests[0].body.version, "1");
+  assert.equal(worker.state.requests[0].credentials, "same-origin");
+  assert.equal(worker.state.requests[0].method, "PATCH");
+  assert.deepEqual(worker.state.messages, ["fieldkit-note-edits-changed"]);
+  assert.equal(worker.state.timers.size, 0);
+  await worker.backgroundSync();
+  assert.equal(worker.state.requests.length, 1);
+});
+
+test("background uploads finish when all app pages are closed", async () => {
+  const saved = engine();
+  await saved.api.saveItem(originalNote, {
+    title: "Closed app",
+    content: "Edit",
+  });
+  const worker = engine({
+    runtime: "worker",
+    records: saved.state.records,
+    online: true,
+    openClients: false,
+  });
+  await worker.backgroundSync();
+  assert.equal(worker.edit().status, "synced");
+  assert.equal(worker.state.requests.length, 1);
+  assert.equal(worker.state.messages.length, 0);
+});
+
+for (const failure of ["network", "timeout", 408, 429, 503]) {
+  test(`background ${failure} failures reject the event and recover on a later browser attempt`, async () => {
+    const saved = engine();
+    await saved.api.saveItem(originalNote, { title: "Retry", content: "Keep" });
+    const worker = engine({
+      runtime: "worker",
+      records: saved.state.records,
+      online: true,
+      fetch(request, state) {
+        if (state.requests.length === 1) {
+          if (failure === "network") throw new TypeError("Network unavailable");
+          if (failure === "timeout")
+            throw new DOMException("Timed out", "TimeoutError");
+          return Response.json({ error: "Try later" }, { status: failure });
+        }
+        return Response.json({
+          item: {
+            ...originalNote,
+            ...request.body,
+            version: 2,
+            updatedAt: 2000,
+          },
+        });
+      },
+    });
+    await assert.rejects(worker.backgroundSync(), /still waiting/);
+    assert.equal(worker.edit().status, "pending");
+    assert.equal(worker.edit().attempts, 1);
+    assert.equal(worker.edit().nextAttemptAt, 2000);
+    assert.equal(worker.state.timers.size, 0);
+    await worker.backgroundSync();
+    assert.equal(worker.edit().status, "synced");
+    assert.deepEqual(
+      worker.state.requests.map((request) => request.body.version),
+      ["1", "1"],
+    );
+  });
+}
+
+for (const status of [401, 409, 422]) {
+  test(`background HTTP ${status} keeps the edit for review without requesting browser retries`, async () => {
+    const saved = engine();
+    await saved.api.saveItem(originalNote, {
+      title: "Keep",
+      content: "My work",
+    });
+    const worker = engine({
+      runtime: "worker",
+      records: saved.state.records,
+      online: true,
+      fetch: () => Response.json({ error: "Review required" }, { status }),
+    });
+    await worker.backgroundSync();
+    assert.equal(worker.edit().status, "failed");
+    assert.equal(worker.edit().payload.content, "My work");
+    assert.equal(worker.edit().error, "Review required");
+    await worker.backgroundSync();
+    assert.equal(worker.state.requests.length, 1);
+  });
+}
+
+test("a worker keeps a newer edit and uploads it with the acknowledged version", async () => {
+  const page = engine();
+  await page.api.saveItem(originalNote, { title: "First", content: "One" });
+  let finish;
+  const worker = engine({
+    runtime: "worker",
+    records: page.state.records,
+    online: true,
+    fetch(request, state) {
+      const response = Response.json({
+        item: {
+          ...originalNote,
+          ...request.body,
+          version: state.requests.length + 1,
+          updatedAt: 2000,
+        },
+      });
+      if (state.requests.length === 1)
+        return new Promise((resolve) => {
+          finish = () => resolve(response);
+        });
+      return response;
+    },
+  });
+  const task = worker.backgroundSync();
+  await until(() => !!finish);
+  await page.api.saveItem(originalNote, { title: "Second", content: "Two" });
+  finish();
+  await task;
+  assert.deepEqual(
+    worker.state.requests.map((request) => request.body.version),
+    ["1", "2"],
+  );
+  assert.equal(worker.edit().payload.title, "Second");
+  assert.equal(worker.edit().status, "synced");
+  assert.equal(worker.edit().note.version, 3);
+});
+
+test("the worker waits for a page upload under the shared lock without duplicating it", async () => {
+  let previous = Promise.resolve();
+  let lockRequests = 0;
+  const locks = {
+    request(name, action) {
+      assert.equal(name, "fieldkit-note-edits");
+      lockRequests += 1;
+      const task = previous.then(() => action({ name }));
+      previous = task.catch(() => {});
+      return task;
+    },
+  };
+  let finish;
+  const page = engine({
+    online: true,
+    locks,
+    fetch(request) {
+      return new Promise((resolve) => {
+        finish = () =>
+          resolve(
+            Response.json({
+              item: {
+                ...originalNote,
+                ...request.body,
+                version: 2,
+                updatedAt: 1000,
+              },
+            }),
+          );
+      });
+    },
+  });
+  await page.api.saveItem(originalNote, {
+    title: "One upload",
+    content: "Edit",
+  });
+  await until(() => !!finish);
+  const worker = engine({
+    runtime: "worker",
+    records: page.state.records,
+    online: true,
+    locks,
+  });
+  const task = worker.backgroundSync();
+  await until(() => lockRequests === 2);
+  assert.equal(worker.state.requests.length, 0);
+  finish();
+  await Promise.all([task, page.api.syncPendingChanges()]);
+  assert.equal(page.edit().status, "synced");
+  assert.equal(page.state.requests.length, 1);
+  assert.equal(worker.state.requests.length, 0);
+});
+
+test("worker messages refresh open pages and the last subscriber removes the listener", async () => {
+  const service = backgroundService();
+  const page = engine({ serviceWorker: service.container });
+  let refreshes = 0;
+  page.window.addEventListener("fieldkit-workspace-changed", () => {
+    refreshes += 1;
+  });
+  const stop = page.api.startNoteSync();
+  function send(data) {
+    const event = new Event("message");
+    Object.assign(event, { data });
+    service.container.dispatchEvent(event);
+  }
+  send("another-feature");
+  assert.equal(refreshes, 0);
+  send("fieldkit-note-edits-changed");
+  assert.equal(refreshes, 1);
+  stop();
+  send("fieldkit-note-edits-changed");
+  assert.equal(refreshes, 1);
 });
 
 test("server note updates reject stale versions without overwriting newer changes", () => {
