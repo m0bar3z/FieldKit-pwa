@@ -54,7 +54,10 @@ const workerBundle = await build({
         );
         plugin.onLoad({ filter: /.*/, namespace: "cache-test" }, () => ({
           contents: `export const defaultCache = [];
-            export class Serwist { addEventListeners() {} }`,
+            export class Serwist { constructor(options) { self.serwistOptions = options; } addEventListeners() {} }
+            export class ExpirationPlugin {}
+            export class NetworkFirst { constructor(options) { this.options = options; } }
+            export class NetworkOnly {}`,
         }));
       },
     },
@@ -63,6 +66,7 @@ const workerBundle = await build({
 
 const originalNote = {
   id: "6e2fd9b3-ce5d-4832-a5cc-271cb399aa18",
+  userId: "fieldkit-demo-user",
   title: "Original",
   content: "Original content",
   excerpt: "Original content",
@@ -79,9 +83,12 @@ function engine({
   serviceWorker,
   locks,
   openClients = true,
+  badging = {},
+  userId = "fieldkit-demo-user",
 } = {}) {
   const state = {
     online,
+    userId,
     now: 1000,
     records,
     requests: [],
@@ -108,7 +115,10 @@ function engine({
     AbortSignal,
     DOMException,
     TypeError,
+    URLSearchParams,
+    URL,
     navigator: {
+      ...badging,
       ...(serviceWorker ? { serviceWorker } : {}),
       ...(locks ? { locks } : {}),
       get onLine() {
@@ -140,11 +150,18 @@ function engine({
       },
     },
     async fetch(url, options) {
+      if (url === "/api/auth/session")
+        return state.userId
+          ? Response.json({
+              user: { id: state.userId, email: `${state.userId}@example.com` },
+            })
+          : Response.json({ error: "Sign in" }, { status: 401 });
       const request = {
         url,
-        body: JSON.parse(options.body),
+        body: options.body ? JSON.parse(options.body) : undefined,
         credentials: options.credentials,
-        method: options.method,
+        method: options.method ?? "GET",
+        expectedUserId: new Headers(options.headers).get("X-FieldKit-User"),
       };
       state.requests.push(request);
       return fetcher
@@ -166,6 +183,7 @@ function engine({
   return {
     state,
     window,
+    caching: worker.serwistOptions?.runtimeCaching,
     api: context.syncApi,
     edit: () => records.get(originalNote.id)?.value,
     backgroundSync(tag = "fieldkit-note-edits") {
@@ -489,6 +507,77 @@ test("the service worker uploads persisted edits without page globals and notifi
   assert.equal(worker.state.requests.length, 1);
 });
 
+test("background sync refreshes and clears the overdue task badge without open pages", async () => {
+  const saved = engine();
+  await saved.api.saveItem(originalNote, {
+    title: "Background",
+    content: "Edit",
+  });
+  const badges = [];
+  let overdue = 3;
+  const worker = engine({
+    runtime: "worker",
+    records: saved.state.records,
+    online: true,
+    openClients: false,
+    badging: {
+      async setAppBadge(count) {
+        badges.push(count);
+      },
+      async clearAppBadge() {
+        badges.push(0);
+      },
+    },
+    fetch(request) {
+      if (request.method === "GET") {
+        assert.ok(
+          new URL(request.url, "https://fieldkit.test").pathname ===
+            "/api/tasks",
+        );
+        assert.equal(request.credentials, "same-origin");
+        return Response.json({
+          userId: "fieldkit-demo-user",
+          counts: { overdue },
+        });
+      }
+      return Response.json({
+        item: { ...originalNote, ...request.body, version: 2, updatedAt: 1000 },
+      });
+    },
+  });
+  await worker.backgroundSync();
+  assert.equal(worker.edit().status, "synced");
+  overdue = 0;
+  await worker.backgroundSync();
+  assert.deepEqual(badges, [3, 0]);
+  assert.deepEqual(
+    worker.state.requests.map((request) => request.method),
+    ["PATCH", "GET", "GET"],
+  );
+});
+
+for (const status of [401, 503]) {
+  test(`badge refresh HTTP ${status} does not fail the background sync event`, async () => {
+    let cleared = false;
+    const worker = engine({
+      runtime: "worker",
+      online: true,
+      badging: {
+        async setAppBadge() {
+          assert.fail("A failed request must not set a badge count");
+        },
+        async clearAppBadge() {
+          cleared = true;
+        },
+      },
+      fetch: () => Response.json({ error: "Unavailable" }, { status }),
+    });
+    await worker.backgroundSync();
+    assert.equal(cleared, status === 401);
+    assert.equal(worker.state.requests.length, 1);
+  });
+}
+
 test("background uploads finish when all app pages are closed", async () => {
   const saved = engine();
   await saved.api.saveItem(originalNote, {
@@ -663,7 +752,7 @@ test("worker messages refresh open pages and the last subscriber removes the lis
   const service = backgroundService();
   const page = engine({ serviceWorker: service.container });
   let refreshes = 0;
-  page.window.addEventListener("fieldkit-workspace-changed", () => {
+  page.window.addEventListener("fieldkit-notes-changed", () => {
     refreshes += 1;
   });
   const stop = page.api.startNoteSync();
@@ -679,6 +768,111 @@ test("worker messages refresh open pages and the last subscriber removes the lis
   stop();
   send("fieldkit-note-edits-changed");
   assert.equal(refreshes, 1);
+});
+
+test("local edits and background uploads stay with their account", async () => {
+  const records = new Map();
+  const first = engine({ records });
+  const secondId = "fieldkit-second-demo-user";
+  const secondNote = {
+    ...originalNote,
+    id: "51b511ed-787a-4eb1-9128-14ac7cb043ca",
+    userId: secondId,
+  };
+  const second = engine({ records, userId: secondId });
+  await first.api.saveItem(originalNote, {
+    title: "First account",
+    content: "Private",
+  });
+  await second.api.saveItem(secondNote, {
+    title: "Second account",
+    content: "Also private",
+  });
+  assert.equal((await first.api.readNoteEdits(originalNote.userId)).length, 1);
+  assert.equal(
+    (await second.api.readNoteEdits(secondId))[0].value.note.id,
+    secondNote.id,
+  );
+  await second.api.discardNoteEdit(originalNote.id, secondId);
+  assert.ok(records.has(originalNote.id));
+
+  const worker = engine({
+    records,
+    runtime: "worker",
+    online: true,
+    userId: secondId,
+  });
+  await worker.backgroundSync();
+  assert.equal(worker.state.requests.length, 1);
+  assert.equal(worker.state.requests[0].expectedUserId, secondId);
+  assert.equal(worker.state.requests[0].body.title, "Second account");
+  assert.equal(records.get(originalNote.id).value.status, "pending");
+  assert.equal(records.get(secondNote.id).value.status, "synced");
+});
+
+test("a page cannot synchronize an account after its session changes", async () => {
+  const page = engine();
+  await page.api.saveItem(originalNote, {
+    title: "Keep local",
+    content: "Private",
+  });
+  page.state.userId = "fieldkit-second-demo-user";
+  page.state.online = true;
+  await assert.rejects(page.api.syncPendingChanges(true), /account changed/);
+  assert.equal(page.state.requests.length, 0);
+  assert.equal(page.edit().status, "pending");
+});
+
+test("signed-out background attempts preserve queued edits", async () => {
+  const page = engine();
+  await page.api.saveItem(originalNote, { title: "Keep", content: "Private" });
+  const worker = engine({
+    runtime: "worker",
+    records: page.state.records,
+    online: true,
+    userId: null,
+  });
+  await assert.rejects(worker.backgroundSync(), /Sign in/);
+  assert.equal(worker.state.requests.length, 0);
+  assert.equal(worker.edit().status, "pending");
+});
+
+test("personal API caching requires matching account scope and a successful response", async () => {
+  const worker = engine({ runtime: "worker" });
+  const rule = worker.caching[0];
+  const url = new URL("https://fieldkit.test/api/notes?userId=first");
+  assert.equal(rule.matcher({ url, sameOrigin: true }), true);
+  assert.equal(
+    rule.matcher({
+      url: new URL("https://fieldkit.test/api/notes"),
+      sameOrigin: true,
+    }),
+    false,
+  );
+  const plugin = rule.handler.options.plugins.find(
+    (plugin) => plugin.cacheWillUpdate,
+  );
+  const request = new Request(url);
+  const own = Response.json(
+    { userId: "first" },
+    { headers: { "X-FieldKit-User": "first" } },
+  );
+  assert.equal(await plugin.cacheWillUpdate({ request, response: own }), own);
+  const other = Response.json(
+    { userId: "second" },
+    { headers: { "X-FieldKit-User": "second" } },
+  );
+  assert.equal(
+    await plugin.cacheWillUpdate({ request, response: other }),
+    null,
+  );
+  assert.equal(
+    await plugin.cacheWillUpdate({
+      request,
+      response: new Response(null, { status: 401 }),
+    }),
+    null,
+  );
 });
 
 test("server note updates reject stale versions without overwriting newer changes", () => {

@@ -19,7 +19,8 @@
     "branch:check": "node scripts/check-branch.mjs",
     "test:tooling": "node --test scripts/git-workflow.test.mjs",
     "test:auth": "node --import tsx --test scripts/auth-input.test.mjs",
-    "test:note-sync": "node --conditions=react-server --import tsx --test scripts/note-sync.test.mjs"
+    "test:note-sync": "node --conditions=react-server --import tsx --test scripts/note-sync.test.mjs",
+    "test:products": "node --conditions=react-server --import tsx --test scripts/personal-data.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

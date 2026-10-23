@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { safeReturnPath, validateSignIn } from "../src/lib/auth/input.ts";
 
-test("return paths stay inside known workspace routes", () => {
+test("return paths stay inside known app routes", () => {
   for (const path of ["/tasks", "/notes", "/tasks/new", "/notes/note_1"]) {
     assert.equal(safeReturnPath(path), path);
   }
