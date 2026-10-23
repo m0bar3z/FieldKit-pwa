@@ -4,7 +4,9 @@ Open a task or note and choose **Add file**. Files are uploaded with
 `POST /api/attachments` using multipart fields `kind`, `parentId`, and `file`.
 `GET /api/attachments/[id]` downloads the file; `DELETE /api/attachments/[id]`
 removes it with a JSON `version` string. All routes require a demo session and
-check that the parent task/note is still active.
+check that the parent task/note is still active and belongs to the signed-in
+account. Attachments also have an owner; another account cannot upload to the
+parent, download the file, or remove it.
 
 Metadata and bytes are held in the attachment array in `src/lib/memory/store.ts`.
 No storage bucket, external service, or environment configuration is required.

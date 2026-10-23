@@ -9,15 +9,15 @@ remain the fallback.
 
 | File | Responsibility |
 | --- | --- |
-| [index.ts](../src/lib/products/note-sync/index.ts) | Public exports used by the editor, workspace, and app shell. |
+| [index.ts](../src/lib/products/note-sync/index.ts) | Public exports used by the editor, notes, and app shell. |
 | [sync.ts](../src/lib/products/note-sync/sync.ts) | Page startup, browser events, runtime state, retry timers, and manual actions. |
 | [engine.ts](../src/lib/products/note-sync/engine.ts) | Shared queue processing, uploads, and locking for pages and the worker. |
 | [background-sync.ts](../src/lib/products/note-sync/background-sync.ts) | Background Sync registration and shared event identifiers. |
 | [worker.ts](../src/lib/products/note-sync/worker.ts) | Runs the shared processor, notifies pages, and reports unfinished work. |
 | [sw.ts](../src/app/sw.ts) | Service worker caching and the Background Sync event listener. |
 | [storage.ts](../src/lib/products/note-sync/storage.ts) | IndexedDB reads and updates, upload preparation, acknowledgements, and retry policy. |
-| [save-item.ts](../src/lib/products/save-item.ts) | Saves edits locally, refreshes the workspace, and requests synchronization. |
-| [note-edits.ts](../src/lib/products/note-edits.ts) | Defines stored edits and overlays them onto workspace notes. |
+| [save-item.ts](../src/lib/products/save-item.ts) | Saves edits locally, refreshes the notes, and requests synchronization. |
+| [note-edits.ts](../src/lib/products/note-edits.ts) | Defines stored edits and overlays them onto notes notes. |
 
 ## Background Sync flowchart
 
@@ -28,7 +28,7 @@ each chart.
 %%{init: {"htmlLabels": false, "flowchart": {"htmlLabels": false}}}%%
 flowchart TD
     save["saveItem()"] --> request["requestNoteBackgroundSync()"]
-    start["startNoteSync()"] --> request
+    start["startNoteSync(userId)"] --> request
     reconnect["handleReconnect()"] --> request
     manual["retryNoteEdit(id)"] --> request
     request --> ready["navigator.serviceWorker.ready"]
@@ -57,7 +57,7 @@ flowchart TD
    task to `event.waitUntil()` to extend the event lifetime.
 4. `syncNoteEditsInBackground()` runs the shared queue with `force = true` on the
    first pass. Its change callback sends `NOTE_SYNC_CHANGED` to open pages, where
-   `handleWorkerNoteChange()` refreshes the workspace and requests a page scan.
+   `handleWorkerNoteChange()` refreshes the notes and requests a page scan.
 5. If pending edits remain, the task rejects so the browser may retry. Failed
    edits needing manual attention do not request automatic retries. No page
    timer is used inside the worker. Browser scheduling and retry limits mean
@@ -69,7 +69,7 @@ flowchart TD
 ```mermaid
 %%{init: {"htmlLabels": false, "flowchart": {"htmlLabels": false}}}%%
 flowchart TD
-    start["startNoteSync()"] --> run["runSync(force)"]
+    start["startNoteSync(userId)"] --> run["runSync(force)"]
     reconnect["handleReconnect()"] --> run
     change["handleNoteChange()"] --> run
     retry["retryPendingChanges()"] --> run
@@ -96,11 +96,11 @@ flowchart TD
 
 1. **Save or start:** `saveItem()` stores a pending edit, calls
    `notifyNoteChanges()`, and requests synchronization. The
-   [app shell](../src/components/fieldkit/layout/app-shell.tsx) calls
-   `startNoteSync()`, which adds listeners on the first subscription and calls
+   [authenticated user provider](../src/components/auth/user-provider.tsx) calls
+   `startNoteSync(userId)`, which adds listeners on the first subscription and calls
    `runSync(true)`.
 2. **Handle events:** `handleReconnect()` calls `runSync(true)`;
-   `handleNoteChange()` refreshes the workspace and calls `runSync()`.
+   `handleNoteChange()` refreshes the notes and calls `runSync()`.
    `runSync()` catches and logs unexpected synchronization errors.
 3. **Start one run:** `syncPendingChanges()` requests a rescan if a run already
    exists. Otherwise, it returns when offline or outside the browser, cancels the
@@ -123,7 +123,7 @@ flowchart TD
    version and marks the edit synced, or keeps a newer local revision pending.
    On failure, `recordNoteSyncFailure()` keeps the edit pending with a retry delay
    or marks it failed. Both paths call `notifyNoteChanges()` to refresh the
-   workspace and broadcast the change. The worker uses a page message instead
+   notes and broadcast the change. The worker uses a page message instead
    of this page-specific callback.
 9. **Repeat if needed:** A successful edit makes the pass count as progress.
    After draining, `processPendingEdits()` checks for a requested rescan and
@@ -136,17 +136,22 @@ flowchart TD
 
 ## Manual actions and cleanup
 
-- `retryNoteEdit(id)` calls `resetNoteEditForRetry()`, notifies the workspace and
+- `retryNoteEdit(id)` calls `resetNoteEditForRetry()`, notifies the notes and
   other tabs, requests Background Sync, then calls `syncPendingChanges(true)`.
 - `discardNoteEdit(id)` removes the local edit under the same browser lock. When
   Web Locks are unavailable, it waits for the current local run first. It then
   calls `notifyNoteChanges()`.
-- `startNoteSync()` returns `stopNoteSync()` for cleanup. The last subscriber
+- `startNoteSync(userId)` returns `stopNoteSync()` for cleanup. The last subscriber
   leaving triggers `unsubscribeFromNoteSyncEvents()` and `cancelNoteSyncRetry()`.
   This removes page listeners and the retry timer; it does not abort an active
   upload or cancel registered Background Sync work.
 
 ## Current behavior
+
+- Queue processing verifies the current session and selects only that account's
+  local edits. Uploads include the expected user ID; the API checks ownership.
+- Legacy local edits belong to the original demo account. Retry and discard
+  also check the local owner.
 
 - Synced snapshots remain in IndexedDB; they are not automatically deleted.
 - If another edit is queued during an upload, it stays pending for the next pass.

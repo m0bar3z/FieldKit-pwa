@@ -1,7 +1,9 @@
 # In-memory product API
 
-Tasks and notes live in one personal demo workspace. Next.js Route Handlers read
-and modify the arrays in `src/lib/memory/store.ts`. No database, migrations,
+Each signed-in account owns its tasks, notes, and attachments. Next.js Route Handlers read
+and modify the arrays in `src/lib/memory/store.ts`. Every record includes a server-assigned
+`userId`; list, read, edit, completion, delete, and file operations check that owner.
+An inaccessible item returns 404. No database, migrations,
 Supabase client, or product Server Actions are required.
 
 Every API request includes a simulated random delay of 1–3 seconds, including
@@ -10,11 +12,12 @@ authentication and file downloads. The delay is implemented in
 
 | Endpoint | Methods | Purpose |
 | --- | --- | --- |
-| `/api/workspace?timeZone=Asia%2FTehran` | GET | UI-ready tasks, notes, attachment metadata, and dashboard counts |
-| `/api/tasks` | GET, POST | List task records or create a task |
+| `/api/tasks?userId=...&timeZone=Asia%2FTehran` | GET | The account's UI-ready tasks, attachment metadata, local date, and task counts |
+| `/api/tasks` | POST | Create a task for the signed-in account |
 | `/api/tasks/[id]` | GET, PATCH, DELETE | Read, edit, or delete a task |
 | `/api/tasks/[id]/completion` | PATCH | Change completion |
-| `/api/notes` | GET, POST | List note records or create a note |
+| `/api/notes?userId=...&timeZone=Asia%2FTehran` | GET | The account's UI-ready notes and attachment metadata |
+| `/api/notes` | POST | Create a note for the signed-in account |
 | `/api/notes/[id]` | GET, PATCH, DELETE | Read, edit, or delete a note |
 
 Product writes accept JSON. A task has `title`, `description`, and `dueDate`; a
@@ -24,23 +27,35 @@ IDs come from the route URL. New records receive UUIDs, timestamps, and version 
 changes increment the version. Stale writes return HTTP 409; missing items return
 404. Client and server use shared Zod schemas.
 
-The dashboard, lists, and detail components use `useWorkspace` to fetch
-`/api/workspace`. Successful form submissions announce success and trigger a
-refetch. Search/filtering stays in the client. Requests have loading, error,
+Task pages use `useTasks`; note pages use `useNotes`. The dashboard uses both.
+`TasksData` and `NotesData` are separate response types. Successful form submissions
+announce success and trigger `refreshTasks` or `refreshNotes` for the affected data.
+Search/filtering stays in the client. Requests have loading, error,
 retry, and empty states. Each form retains its own async submit handler and
 React Hook Form/Zod validation; failed saves retain inputs. No unsaved-change
 confirmation or automatic draft storage is implemented.
 
 Due dates remain calendar dates. The browser sends its IANA time zone so the API
-calculates overdue/today status consistently. The workspace clock refreshes API
-data when the local day or time zone changes. Reminder editing/delivery remains
+calculates overdue/today status consistently. `TaskClock` refreshes task data
+when the local day or time zone changes. Reminder editing/delivery remains
 a TODO.
+
+The installed app icon shows the number of overdue, incomplete tasks through
+the Badging API where supported. Task loads update the count, including
+after task changes and local date/time zone changes. Zero overdue tasks,
+sign-out, or an expired session clear the badge. The service worker also
+refreshes the badge during note Background Sync. Badge failures do not block
+data loading or synchronization. Visibility depends on the browser and
+operating system; iOS/iPadOS also require notification permission. The app does
+not request notification permission automatically or schedule separate badge
+updates while closed. The dashboard keeps showing the overdue count in-app.
 
 Existing note edits use `src/lib/products/save-item.ts`. The latest title and
 content are saved in IndexedDB with the server ID and original version, then
-overlaid onto cached workspace data. Tasks retain their direct API save path.
-New offline-created notes are displayed locally but are not synchronized by the
-note-edit queue.
+overlaid onto the account's cached notes. Tasks retain their direct API save path.
+New offline-created notes are stored with their owner and displayed locally but
+are not synchronized by the note-edit queue. Creating tasks requires connectivity.
+Existing unowned local edits and drafts belong to the original demo account.
 
 Note edits request service worker Background Sync where supported. Saving,
 startup, reconnection, and manual retry register the `fieldkit-note-edits` tag
@@ -65,12 +80,24 @@ lost, retrying can report a version conflict; the local edit remains available
 for review. A synchronized note snapshot remains local so an older cached
 response cannot undo the acknowledged edit.
 
+The processor verifies the active session before selecting that account's local
+edits. Uploads include an expected account header, which the API checks against
+the session. Switching accounts cannot upload another account's queued changes.
+Manual retry/discard also check the local owner.
+
+The service worker caches successful task/note list responses by URL, including
+the account ID and time zone, and verifies the response's account header. Other
+API requests use the network. Sign-in/sign-out clear private runtime caches and
+notify other open tabs to reload their session; local queued edits remain saved
+for their owner. Static asset caching and the offline fallback page remain.
+
 Deleting an item marks it and its attachments deleted; related file bytes are
 released. Deleted records stay in the arrays but are hidden from GET responses.
 There is no restore action. Files are otherwise managed through the attachment
 API described in `attachments.md`.
 
-Data is temporary and shared by every session of the single demo account.
+Data is temporary. Sessions of the same account share that account's records;
+different accounts have separate records.
 Restarting the Node.js process empties the arrays. Separate processes/serverless
 instances have independent stores, so use one local Node.js instance for a
 consistent PWA learning session.
