@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 import { AttachmentInputError } from "@/lib/attachments/input";
 import { getCurrentUser } from "@/lib/auth/session";
+import type { User } from "@/lib/auth/types";
 import { validationFields } from "@/lib/forms/validation";
 import { simulateApiDelay } from "./delay";
 import { ApiError } from "./errors";
@@ -21,14 +22,24 @@ export function checkOrigin(request: Request) {
 }
 export async function apiRoute(
   request: Request,
-  operation: () => unknown | Promise<unknown>,
+  operation: (user: User) => unknown | Promise<unknown>,
 ) {
   try {
     await simulateApiDelay();
     if (!["GET", "HEAD"].includes(request.method)) checkOrigin(request);
-    if (!(await getCurrentUser()))
-      throw new ApiError("Sign in to continue.", 401);
-    return jsonResponse(await operation());
+    const user = await getCurrentUser();
+    if (!user) throw new ApiError("Sign in to continue.", 401);
+    const expectedUser =
+      request.headers.get("X-FieldKit-User") ??
+      new URL(request.url).searchParams.get("userId");
+    if (expectedUser && expectedUser !== user.id)
+      throw new ApiError(
+        "Your account changed. Sign in again to continue.",
+        401,
+      );
+    const response = jsonResponse(await operation(user));
+    response.headers.set("X-FieldKit-User", user.id);
+    return response;
   } catch (error) {
     return apiFailure(error);
   }

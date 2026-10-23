@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { DEMO_ACCOUNT } from "@/lib/auth/demo-account";
+import { DEMO_ACCOUNTS } from "@/lib/auth/demo-account";
 import { safeReturnPath } from "@/lib/auth/input";
 import { getCurrentUser } from "@/lib/auth/session";
 
@@ -27,24 +27,25 @@ async function SignInContent({ searchParams }: PageProps<"/login">) {
           <h1>Sign in to FieldKit</h1>
         </CardTitle>
         <CardDescription>
-          Use the demo account to open your notes and tasks.
+          Each demo account has its own notes and tasks.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <SignInForm next={next} />
       </CardContent>
       <CardFooter className="flex-col items-start gap-2">
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          Email: <code>{DEMO_ACCOUNT.email}</code>
-          <CopyCredentialButton label="email" value={DEMO_ACCOUNT.email} />
-        </p>
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          Password: <code>{DEMO_ACCOUNT.password}</code>
-          <CopyCredentialButton
-            label="password"
-            value={DEMO_ACCOUNT.password}
-          />
-        </p>
+        {DEMO_ACCOUNTS.map((account) => (
+          <div key={account.id} className="flex flex-col gap-2 py-2">
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              Email: <code>{account.email}</code>
+              <CopyCredentialButton label="email" value={account.email} />
+            </p>
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              Password: <code>{account.password}</code>
+              <CopyCredentialButton label="password" value={account.password} />
+            </p>
+          </div>
+        ))}
       </CardFooter>
     </Card>
   );

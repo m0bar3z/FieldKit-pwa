@@ -8,7 +8,7 @@ import { uploadAttachmentSchema } from "@/lib/attachments/schemas";
 import { addAttachment } from "@/lib/attachments/store";
 
 export async function POST(request: Request) {
-  return apiRoute(request, async () => {
+  return apiRoute(request, async (user) => {
     const form = await request.formData().catch(() => {
       throw new ApiError("Choose a file to upload.");
     });
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const mimeType = validateAttachmentFile(input.file);
     const bytes = new Uint8Array(await input.file.arrayBuffer());
     validateAttachmentBytes(bytes, mimeType);
-    const item = addAttachment(input.kind, input.parentId, {
+    const item = addAttachment(user.id, input.kind, input.parentId, {
       name: input.file.name,
       mimeType,
       bytes,

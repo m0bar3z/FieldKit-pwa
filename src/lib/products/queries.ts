@@ -4,7 +4,7 @@ import { memory } from "@/lib/memory/store";
 import { calendarDateAt, normalizeTimeZone, taskGroup } from "./presentation";
 import type { Attachment, Note, Task, Workspace } from "./types";
 
-export function getWorkspace(zone?: string): Workspace {
+export function getWorkspace(userId: string, zone?: string): Workspace {
   const timeZone = normalizeTimeZone(zone);
   const today = calendarDateAt(new Date(), timeZone);
   const sorted = <T extends { updatedAt: number; id: string }>(items: T[]) =>
@@ -15,7 +15,10 @@ export function getWorkspace(zone?: string): Workspace {
     return memory.attachments
       .filter(
         (item) =>
-          item.kind === kind && item.parentId === parentId && !item.deletedAt,
+          item.userId === userId &&
+          item.kind === kind &&
+          item.parentId === parentId &&
+          !item.deletedAt,
       )
       .map((item) => {
         const size = item.bytes.byteLength;
@@ -34,7 +37,7 @@ export function getWorkspace(zone?: string): Workspace {
       });
   }
   const tasks: Task[] = sorted(
-    memory.tasks.filter((item) => !item.deletedAt),
+    memory.tasks.filter((item) => item.userId === userId && !item.deletedAt),
   ).map((item) => ({
     id: item.id,
     version: item.version,
@@ -47,7 +50,7 @@ export function getWorkspace(zone?: string): Workspace {
     attachments: attachments("task", item.id),
   }));
   const notes: Note[] = sorted(
-    memory.notes.filter((item) => !item.deletedAt),
+    memory.notes.filter((item) => item.userId === userId && !item.deletedAt),
   ).map((item) => ({
     id: item.id,
     version: item.version,

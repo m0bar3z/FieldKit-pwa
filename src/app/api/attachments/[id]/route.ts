@@ -14,9 +14,12 @@ type Context = { params: Promise<{ id: string }> };
 export async function GET(_request: Request, { params }: Context) {
   try {
     await simulateApiDelay();
-    if (!(await getCurrentUser()))
-      throw new ApiError("Sign in to download files.", 401);
-    const attachment = getAttachment(productIdSchema.parse((await params).id));
+    const user = await getCurrentUser();
+    if (!user) throw new ApiError("Sign in to download files.", 401);
+    const attachment = getAttachment(
+      user.id,
+      productIdSchema.parse((await params).id),
+    );
     return new Response(new Blob([new Uint8Array(attachment.bytes)]), {
       headers: {
         ...privateHeaders,
@@ -30,12 +33,12 @@ export async function GET(_request: Request, { params }: Context) {
   }
 }
 export async function DELETE(request: Request, { params }: Context) {
-  return apiRoute(request, async () => {
+  return apiRoute(request, async (user) => {
     const id = productIdSchema.parse((await params).id);
     const input = identitySchema
       .omit({ id: true })
       .parse(await readJson(request));
-    removeAttachment(id, Number(input.version));
+    removeAttachment(user.id, id, Number(input.version));
     return { success: "File removed." };
   });
 }

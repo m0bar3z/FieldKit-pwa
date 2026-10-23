@@ -4,12 +4,17 @@ import { setTaskCompleted } from "@/lib/products/store";
 
 type Context = { params: Promise<{ id: string }> };
 export async function PATCH(request: Request, { params }: Context) {
-  return apiRoute(request, async () => {
+  return apiRoute(request, async (user) => {
     const id = productIdSchema.parse((await params).id);
     const input = completionSchema
       .omit({ id: true })
       .parse(await readJson(request));
-    const item = setTaskCompleted(id, Number(input.version), input.completed);
+    const item = setTaskCompleted(
+      user.id,
+      id,
+      Number(input.version),
+      input.completed,
+    );
     return { success: "Task completion updated.", item };
   });
 }

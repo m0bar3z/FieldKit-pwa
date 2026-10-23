@@ -4,13 +4,13 @@ import { noteSchema } from "@/lib/products/schemas";
 import { createNote } from "@/lib/products/store";
 
 export async function GET(request: Request) {
-  return apiRoute(request, () =>
-    memory.notes.filter((item) => !item.deletedAt),
+  return apiRoute(request, (user) =>
+    memory.notes.filter((item) => item.userId === user.id && !item.deletedAt),
   );
 }
 export async function POST(request: Request) {
-  return apiRoute(request, async () => {
-    const item = createNote(noteSchema.parse(await readJson(request)));
+  return apiRoute(request, async (user) => {
+    const item = createNote(user.id, noteSchema.parse(await readJson(request)));
     return { success: "Note created.", destination: `/notes/${item.id}`, item };
   });
 }

@@ -1,5 +1,6 @@
 export type ItemMetadata = {
   id: string;
+  userId: string;
   version: number;
   /** Unix timestamps in milliseconds. */
   createdAt: number;
@@ -20,4 +21,4 @@ export type AttachmentRecord = ItemMetadata & {
   mimeType: string;
   bytes: Uint8Array;
 };
-export type DemoSession = { token: string; expiresAt: number };
+export type DemoSession = { token: string; userId: string; expiresAt: number };

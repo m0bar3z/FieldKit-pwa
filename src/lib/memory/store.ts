@@ -1,5 +1,7 @@
 import "server-only";
 
+import { LEGACY_USER_ID } from "@/lib/auth/types";
+
 import type {
   AttachmentRecord,
   DemoSession,
@@ -31,7 +33,9 @@ function timestamp(value: number | string): number {
   return typeof value === "string" ? Date.parse(value) : value;
 }
 for (const item of [...memory.tasks, ...memory.notes, ...memory.attachments]) {
+  item.userId ??= LEGACY_USER_ID;
   item.createdAt = timestamp(item.createdAt);
   item.updatedAt = timestamp(item.updatedAt);
   if (item.deletedAt !== null) item.deletedAt = timestamp(item.deletedAt);
 }
+for (const session of memory.sessions) session.userId ??= LEGACY_USER_ID;

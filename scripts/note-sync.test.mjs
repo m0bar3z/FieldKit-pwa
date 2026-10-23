@@ -688,14 +688,21 @@ test("server note updates reject stale versions without overwriting newer change
     updateNote,
     getNote,
   } = require("../src/lib/products/store.ts");
-  const note = createNote({ title: "Server note", content: "Original" });
+  const note = createNote("fieldkit-demo-user", {
+    title: "Server note",
+    content: "Original",
+  });
   const input = { title: "Edited", content: "New content" };
-  assert.equal(updateNote(note.id, 1, input).version, 2);
-  assert.equal(getNote(note.id).version, 2);
+  assert.equal(updateNote("fieldkit-demo-user", note.id, 1, input).version, 2);
+  assert.equal(getNote("fieldkit-demo-user", note.id).version, 2);
   assert.throws(
-    () => updateNote(note.id, 1, { title: "Stale edit", content: "" }),
+    () =>
+      updateNote("fieldkit-demo-user", note.id, 1, {
+        title: "Stale edit",
+        content: "",
+      }),
     (error) => error.status === 409,
   );
-  assert.equal(getNote(note.id).title, "Edited");
-  assert.equal(getNote(note.id).version, 2);
+  assert.equal(getNote("fieldkit-demo-user", note.id).title, "Edited");
+  assert.equal(getNote("fieldkit-demo-user", note.id).version, 2);
 });

@@ -6,14 +6,16 @@ import type { AttachmentRecord } from "@/lib/memory/types";
 import { getItem } from "@/lib/products/store";
 
 export function addAttachment(
+  userId: string,
   kind: "task" | "note",
   parentId: string,
   file: { name: string; mimeType: string; bytes: Uint8Array },
 ) {
-  getItem(kind, parentId);
+  getItem(userId, kind, parentId);
   const now = Date.now();
   const attachment: AttachmentRecord = {
     id: crypto.randomUUID(),
+    userId,
     version: 1,
     createdAt: now,
     updatedAt: now,
@@ -25,17 +27,17 @@ export function addAttachment(
   memory.attachments.push(attachment);
   return attachment;
 }
-export function getAttachment(id: string) {
+export function getAttachment(userId: string, id: string) {
   const item = memory.attachments.find(
-    (item) => item.id === id && !item.deletedAt,
+    (item) => item.userId === userId && item.id === id && !item.deletedAt,
   );
   if (!item)
     throw new ApiError("This file is unavailable or was removed.", 404);
-  getItem(item.kind, item.parentId);
+  getItem(userId, item.kind, item.parentId);
   return item;
 }
-export function removeAttachment(id: string, version: number) {
-  const item = getAttachment(id);
+export function removeAttachment(userId: string, id: string, version: number) {
+  const item = getAttachment(userId, id);
   if (item.version !== version)
     throw new ApiError("This file changed. Refresh and try again.", 409);
   item.deletedAt = Date.now();

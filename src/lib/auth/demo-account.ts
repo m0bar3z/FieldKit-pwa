@@ -6,3 +6,12 @@ export const DEMO_ACCOUNT = {
   email: "demo@fieldkit.app",
   password: "FieldKit123!",
 };
+
+export const DEMO_ACCOUNTS = [
+  DEMO_ACCOUNT,
+  {
+    id: "fieldkit-second-demo-user",
+    email: "second@fieldkit.app",
+    password: "FieldKit123!",
+  },
+];

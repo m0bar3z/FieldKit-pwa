@@ -9,7 +9,7 @@ import {
   privateHeaders,
   readJson,
 } from "@/lib/api/server";
-import { DEMO_ACCOUNT } from "@/lib/auth/demo-account";
+import { DEMO_ACCOUNTS } from "@/lib/auth/demo-account";
 import { safeReturnPath } from "@/lib/auth/input";
 import { signInSchema } from "@/lib/auth/schemas";
 import {
@@ -27,13 +27,15 @@ export async function POST(request: Request) {
     const credentials = signInSchema
       .extend({ next: z.unknown().optional() })
       .parse(body);
-    if (
-      credentials.email !== DEMO_ACCOUNT.email ||
-      credentials.password !== DEMO_ACCOUNT.password
-    )
+    const account = DEMO_ACCOUNTS.find(
+      (account) =>
+        account.email === credentials.email &&
+        account.password === credentials.password,
+    );
+    if (!account)
       throw new ApiError("Check your email and password, then try again.", 401);
     removeSession((await cookies()).get(SESSION_COOKIE)?.value);
-    const token = createSession();
+    const token = createSession(account.id);
     const response = NextResponse.json(
       { success: "Signed in.", destination: safeReturnPath(credentials.next) },
       { headers: privateHeaders },
