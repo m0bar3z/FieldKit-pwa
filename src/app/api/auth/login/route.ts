@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { simulateApiDelay } from "@/lib/api/delay";
@@ -14,7 +13,6 @@ import { safeReturnPath } from "@/lib/auth/input";
 import { signInSchema } from "@/lib/auth/schemas";
 import {
   createSession,
-  removeSession,
   SESSION_COOKIE,
   sessionCookieOptions,
 } from "@/lib/auth/session";
@@ -34,8 +32,7 @@ export async function POST(request: Request) {
     );
     if (!account)
       throw new ApiError("Check your email and password, then try again.", 401);
-    removeSession((await cookies()).get(SESSION_COOKIE)?.value);
-    const token = createSession(account.id);
+    const token = await createSession(account.id);
     const response = NextResponse.json(
       { success: "Signed in.", destination: safeReturnPath(credentials.next) },
       { headers: privateHeaders },

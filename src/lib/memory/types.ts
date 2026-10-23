@@ -21,4 +21,3 @@ export type AttachmentRecord = ItemMetadata & {
   mimeType: string;
   bytes: Uint8Array;
 };
-export type DemoSession = { token: string; userId: string; expiresAt: number };

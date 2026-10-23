@@ -2,18 +2,12 @@ import "server-only";
 
 import { LEGACY_USER_ID } from "@/lib/auth/types";
 
-import type {
-  AttachmentRecord,
-  DemoSession,
-  NoteRecord,
-  TaskRecord,
-} from "./types";
+import type { AttachmentRecord, NoteRecord, TaskRecord } from "./types";
 
 type MemoryStore = {
   tasks: TaskRecord[];
   notes: NoteRecord[];
   attachments: AttachmentRecord[];
-  sessions: DemoSession[];
 };
 const demoGlobal = globalThis as typeof globalThis & {
   fieldkitDemoStore?: MemoryStore;
@@ -24,7 +18,6 @@ demoGlobal.fieldkitDemoStore ??= {
   tasks: [],
   notes: [],
   attachments: [],
-  sessions: [],
 };
 export const memory = demoGlobal.fieldkitDemoStore;
 
@@ -38,4 +31,3 @@ for (const item of [...memory.tasks, ...memory.notes, ...memory.attachments]) {
   item.updatedAt = timestamp(item.updatedAt);
   if (item.deletedAt !== null) item.deletedAt = timestamp(item.deletedAt);
 }
-for (const session of memory.sessions) session.userId ??= LEGACY_USER_ID;

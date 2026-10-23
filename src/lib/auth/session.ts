@@ -1,14 +1,15 @@
 import "server-only";
 
-import { randomBytes } from "node:crypto";
+import { jwtVerify, SignJWT } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { memory } from "@/lib/memory/store";
 import { DEMO_ACCOUNT, DEMO_ACCOUNTS } from "./demo-account";
 
 export const SESSION_COOKIE = "fieldkit-demo-session";
 export const SESSION_SECONDS = 7 * 24 * 60 * 60;
+const SESSION_ISSUER = "fieldkit";
+const SESSION_AUDIENCE = "fieldkit-demo";
 export const sessionCookieOptions = {
   httpOnly: true,
   sameSite: "lax" as const,
@@ -17,36 +18,43 @@ export const sessionCookieOptions = {
   maxAge: SESSION_SECONDS,
 };
 
-export function userFromSession(token?: string) {
-  const now = Date.now();
-  memory.sessions = memory.sessions.filter(
-    (session) => session.expiresAt > now,
-  );
-  const session = memory.sessions.find((session) => session.token === token);
-  if (!token || !session) return null;
-  const account = DEMO_ACCOUNTS.find(
-    (account) => account.id === session.userId,
-  );
-  if (!account) return null;
-  // Never return the password or session token to client code.
-  return { id: account.id, email: account.email };
+function sessionKey() {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || new TextEncoder().encode(secret).length < 32) {
+    throw new Error(
+      "Set SESSION_SECRET to a random value of at least 32 bytes.",
+    );
+  }
+  return new TextEncoder().encode(secret);
 }
-export function removeSession(token?: string) {
-  memory.sessions = memory.sessions.filter(
-    (session) => session.token !== token,
-  );
+
+export async function userFromSession(token?: string) {
+  if (!token) return null;
+  const key = sessionKey();
+  try {
+    const { payload } = await jwtVerify(token, key, {
+      algorithms: ["HS256"],
+      issuer: SESSION_ISSUER,
+      audience: SESSION_AUDIENCE,
+      requiredClaims: ["sub", "exp", "iat", "jti"],
+    });
+    const account = DEMO_ACCOUNTS.find((account) => account.id === payload.sub);
+    return account ? { id: account.id, email: account.email } : null;
+  } catch {
+    return null;
+  }
 }
-export function createSession(userId = DEMO_ACCOUNT.id) {
-  userFromSession(); // Drop expired sessions before adding another.
-  const token = randomBytes(32).toString("hex");
-  memory.sessions.push({
-    token,
-    userId,
-    expiresAt: Date.now() + SESSION_SECONDS * 1000,
-  });
-  // Bound the demo's session array; old sessions can sign in again.
-  if (memory.sessions.length > 100) memory.sessions.shift();
-  return token;
+
+export async function createSession(userId = DEMO_ACCOUNT.id) {
+  return new SignJWT({})
+    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+    .setSubject(userId)
+    .setIssuer(SESSION_ISSUER)
+    .setAudience(SESSION_AUDIENCE)
+    .setIssuedAt()
+    .setExpirationTime(Math.floor(Date.now() / 1000) + SESSION_SECONDS)
+    .setJti(crypto.randomUUID())
+    .sign(sessionKey());
 }
 export const getCurrentUser = cache(async () => {
   return userFromSession((await cookies()).get(SESSION_COOKIE)?.value);

@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { simulateApiDelay } from "@/lib/api/delay";
 import {
@@ -9,7 +8,6 @@ import {
 } from "@/lib/api/server";
 import {
   getCurrentUser,
-  removeSession,
   SESSION_COOKIE,
   sessionCookieOptions,
 } from "@/lib/auth/session";
@@ -26,7 +24,6 @@ export async function DELETE(request: Request) {
   try {
     await simulateApiDelay();
     checkOrigin(request);
-    removeSession((await cookies()).get(SESSION_COOKIE)?.value);
     const response = NextResponse.json(
       { success: "Signed out." },
       { headers: privateHeaders },

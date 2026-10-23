@@ -56,13 +56,24 @@ const secondId = "fieldkit-second-demo-user";
 function server() {
   const context = vm.createContext({
     require: createRequire(import.meta.url),
-    process: { env: { NODE_ENV: "test" } },
+    process: {
+      env: {
+        NODE_ENV: "test",
+        SESSION_SECRET: "fieldkit-test-session-secret-only-32-characters",
+      },
+    },
+    TextEncoder,
+    TextDecoder,
+    CryptoKey,
+    btoa,
+    atob,
     crypto,
     Response,
     Request,
     Headers,
     URL,
     Uint8Array,
+    structuredClone,
     Blob,
     console,
     currentToken: undefined,
@@ -71,8 +82,10 @@ function server() {
   const api = context.api;
   return {
     api,
-    signIn(userId) {
-      context.currentToken = userId ? api.createSession(userId) : undefined;
+    async signIn(userId) {
+      context.currentToken = userId
+        ? await api.createSession(userId)
+        : undefined;
     },
     async call(
       handler,
@@ -90,7 +103,7 @@ function server() {
 
 test("task and note list APIs return only the session owner's data and counts", async () => {
   const { api, signIn, call } = server();
-  signIn(firstId);
+  await signIn(firstId);
   const first = await (
     await call(api.tasksPOST, {
       method: "POST",
@@ -110,7 +123,7 @@ test("task and note list APIs return only the session owner's data and counts", 
     })
   ).json();
   assert.equal(note.item.userId, firstId);
-  signIn(secondId);
+  await signIn(secondId);
   await call(api.tasksPOST, {
     method: "POST",
     body: { title: "Second task", description: "Private", dueDate: "" },
@@ -132,7 +145,7 @@ test("task and note list APIs return only the session owner's data and counts", 
   const notes = await (await call(api.notesGET)).json();
   assert.equal(notes.items.length, 1);
   assert.equal(notes.items[0].title, "Second note");
-  signIn(firstId);
+  await signIn(firstId);
   const own = await (await call(api.tasksGET)).json();
   assert.equal(own.counts.overdue, 1);
   assert.equal(own.items[0].title, "First task");
@@ -146,7 +159,7 @@ test("foreign item reads, edits, completion changes, and deletions return 404", 
     dueDate: "",
   });
   const note = api.createNote(firstId, { title: "Private note", content: "" });
-  signIn(secondId);
+  await signIn(secondId);
   for (const [handler, options] of [
     [api.taskGET, { id: task.id }],
     [
@@ -180,7 +193,7 @@ test("foreign item reads, edits, completion changes, and deletions return 404", 
 
 test("account scope checks reject stale pages and unauthenticated requests", async () => {
   const { api, signIn, call } = server();
-  signIn(secondId);
+  await signIn(secondId);
   assert.equal(
     (await call(api.notesGET, { query: `?userId=${firstId}` })).status,
     401,
@@ -196,7 +209,7 @@ test("account scope checks reject stale pages and unauthenticated requests", asy
     401,
   );
   assert.equal((await call(api.notesGET)).status, 200);
-  signIn(null);
+  await signIn(null);
   assert.equal((await call(api.notesGET)).status, 401);
   assert.equal((await call(api.tasksGET)).status, 401);
 });
@@ -218,7 +231,7 @@ test("attachment downloads, removal, and parent lookups enforce ownership", asyn
       }),
     (error) => error.status === 404,
   );
-  signIn(secondId);
+  await signIn(secondId);
   assert.equal((await call(api.fileGET, { id: file.id })).status, 404);
   assert.equal(
     (
@@ -230,7 +243,7 @@ test("attachment downloads, removal, and parent lookups enforce ownership", asyn
     ).status,
     404,
   );
-  signIn(firstId);
+  await signIn(firstId);
   const downloaded = await call(api.fileGET, { id: file.id });
   assert.equal(downloaded.status, 200);
   assert.equal(await downloaded.text(), "A");
@@ -240,7 +253,7 @@ test("attachment downloads, removal, and parent lookups enforce ownership", asyn
 
 test("owned task completion updates counts and stale versions remain protected", async () => {
   const { api, signIn, call } = server();
-  signIn(firstId);
+  await signIn(firstId);
   const task = api.createTask(firstId, {
     title: "Overdue",
     description: "",
