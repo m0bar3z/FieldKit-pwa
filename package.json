@@ -18,7 +18,7 @@
     "prepare": "node .husky/install.mjs",
     "branch:check": "node scripts/check-branch.mjs",
     "test:tooling": "node --test scripts/git-workflow.test.mjs",
-    "test:auth": "node --import tsx --test scripts/auth-input.test.mjs",
+    "test:auth": "node --conditions=react-server --import tsx --test scripts/auth-input.test.mjs scripts/auth-session.test.mjs",
     "test:note-sync": "node --conditions=react-server --import tsx --test scripts/note-sync.test.mjs",
     "test:products": "node --conditions=react-server --import tsx --test scripts/personal-data.test.mjs"
   },
