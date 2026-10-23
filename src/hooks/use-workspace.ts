@@ -15,6 +15,7 @@ import { applyNoteEdits } from "@/lib/products/note-edits";
 import { readNoteEdits } from "@/lib/products/note-sync";
 import type { ItemFormValues } from "@/lib/products/schemas";
 import type { Note, Workspace } from "@/lib/products/types";
+import { updateAppBadge } from "@/lib/pwa/app-badge";
 
 type StoredItemSubmission = {
   id: number;
@@ -82,10 +83,12 @@ export function useWorkspace() {
           counts: { ...data.counts, notes: notes.length },
         });
 
+        void updateAppBadge(data.counts.overdue);
         setError("");
       } catch (error: unknown) {
         if (controller.signal.aborted) return;
         if (error instanceof ApiRequestError && error.status === 401) {
+          void updateAppBadge(0);
           window.location.assign("/login");
           return;
         }

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { apiRequest } from "@/lib/api/client";
+import { updateAppBadge } from "@/lib/pwa/app-badge";
 
 export function SignOutButton() {
   const [pending, setPending] = useState(false);
@@ -18,6 +19,7 @@ export function SignOutButton() {
     setError("");
     try {
       await apiRequest("/api/auth/session", { method: "DELETE" });
+      await updateAppBadge(0);
       window.location.assign("/login");
     } catch (error) {
       setError(
