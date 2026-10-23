@@ -4,21 +4,20 @@ import { PlusIcon } from "lucide-react";
 import { PageHeading } from "@/components/fieldkit/layout/page-heading";
 import { LinkButton } from "@/components/fieldkit/navigation/link-button";
 import { NoteCollection } from "@/components/fieldkit/notes/note-collection";
-import { useWorkspace } from "@/hooks/use-workspace";
-import { WorkspaceDataState } from "../feedback/workspace-data-state";
+import { useNotes } from "@/hooks/use-notes";
+import { DataState } from "../feedback/data-state";
 
 export function NotesPage() {
-  const { workspace, error, retry } = useWorkspace();
+  const { data, error, retry } = useNotes();
 
-  if (error || !workspace)
-    return <WorkspaceDataState error={error} retry={retry} />;
+  if (error || !data) return <DataState error={error} retry={retry} />;
 
-  const { notes } = workspace;
+  const notes = data.items;
 
   return (
     <>
       <PageHeading
-        eyebrow="Your personal workspace"
+        eyebrow="Your notes and tasks"
         title="Notes"
         description="Ideas and field notes, all in one place."
         actions={
@@ -28,7 +27,7 @@ export function NotesPage() {
           </LinkButton>
         }
       />
-      <NoteCollection notes={notes} timeZone={workspace.timeZone} />
+      <NoteCollection notes={notes} timeZone={data.timeZone} />
     </>
   );
 }

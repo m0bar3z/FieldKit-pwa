@@ -1,11 +1,11 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function WorkspaceLoading() {
+export function AppLoading() {
   return (
     <div className="flex flex-col gap-8" aria-busy="true">
       <output className="text-sm text-muted-foreground">
-        Loading your workspace…
+        Loading your notes and tasks…
       </output>
       <div aria-hidden="true" className="flex flex-col gap-8">
         <div className="flex flex-col gap-3">

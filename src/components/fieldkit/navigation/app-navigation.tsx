@@ -4,24 +4,17 @@ import { ArrowUpRightIcon, BookOpenIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import {
-  isWorkspaceRouteActive,
-  primaryNavigation,
-} from "@/lib/navigation/workspace";
+import { isAppRouteActive, primaryNavigation } from "@/lib/navigation/app";
 import { cn } from "@/lib/shared/utils";
-import { WorkspaceLink as Link } from "./workspace-link";
+import { AppLink as Link } from "./app-link";
 
-export function WorkspaceNavigation({
-  onNavigate,
-}: {
-  onNavigate: () => void;
-}) {
+export function AppNavigation({ onNavigate }: { onNavigate: () => void }) {
   const pathname = usePathname();
   return (
-    <nav aria-label="Workspace navigation" className="flex flex-col gap-7">
+    <nav aria-label="App navigation" className="flex flex-col gap-7">
       <div className="flex flex-col gap-1">
         {primaryNavigation.map(({ href, label, icon: Icon }) => {
-          const active = isWorkspaceRouteActive(pathname, href);
+          const active = isAppRouteActive(pathname, href);
           return (
             <Link
               key={href}

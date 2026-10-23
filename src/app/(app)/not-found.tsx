@@ -18,7 +18,7 @@ export default function NotFound() {
       </EmptyHeader>
       <EmptyContent>
         <LinkButton href="/" variant="outline">
-          Back to workspace
+          Back to dashboard
         </LinkButton>
       </EmptyContent>
     </Empty>

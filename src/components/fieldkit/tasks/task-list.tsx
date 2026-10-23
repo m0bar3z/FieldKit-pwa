@@ -4,7 +4,7 @@ import {
   CalendarDaysIcon,
   PaperclipIcon,
 } from "lucide-react";
-import { WorkspaceLink as Link } from "@/components/fieldkit/navigation/workspace-link";
+import { AppLink as Link } from "@/components/fieldkit/navigation/app-link";
 import { Separator } from "@/components/ui/separator";
 import { formatDueDate, formatReminder } from "@/lib/products/presentation";
 import type { Task } from "@/lib/products/types";

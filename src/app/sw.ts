@@ -3,7 +3,7 @@
 
 import { defaultCache } from "@serwist/turbopack/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { Serwist } from "serwist";
+import { ExpirationPlugin, NetworkFirst, NetworkOnly, Serwist } from "serwist";
 import { NOTE_SYNC_TAG } from "@/lib/products/note-sync/background-sync";
 import { syncNoteEditsInBackground } from "@/lib/products/note-sync/worker";
 
@@ -21,7 +21,35 @@ const serwist = new Serwist({
   disableDevLogs: true,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: defaultCache,
+  runtimeCaching: [
+    {
+      matcher: ({ url, sameOrigin }) =>
+        sameOrigin &&
+        ["/api/tasks", "/api/notes"].includes(url.pathname) &&
+        !!url.searchParams.get("userId"),
+      method: "GET",
+      handler: new NetworkFirst({
+        cacheName: "fieldkit-personal-data-v1",
+        plugins: [
+          new ExpirationPlugin({ maxEntries: 32, maxAgeSeconds: 86400 }),
+          {
+            cacheWillUpdate: async ({ request, response }) =>
+              response.status === 200 &&
+              response.headers.get("X-FieldKit-User") ===
+                new URL(request.url).searchParams.get("userId")
+                ? response
+                : null,
+          },
+        ],
+      }),
+    },
+    {
+      matcher: ({ url, sameOrigin }) =>
+        sameOrigin && url.pathname.startsWith("/api/"),
+      handler: new NetworkOnly(),
+    },
+    ...defaultCache,
+  ],
   precacheOptions: {
     cleanupOutdatedCaches: true,
   },

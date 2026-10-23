@@ -1,4 +1,5 @@
 import { ApiRequestError } from "@/lib/api/client";
+import { LEGACY_USER_ID } from "@/lib/auth/types";
 import { IndexedDbRecordType, NoteSyncStatus } from "@/lib/indexed-db/enums";
 import { getAllFromStore, modifyFromStore } from "@/lib/indexed-db/indexed-db";
 import type { NoteRecord } from "@/lib/memory/types";
@@ -8,12 +9,27 @@ import {
   type StoredNoteEdit,
 } from "../note-edits";
 
-export async function readNoteEdits() {
-  return (await getAllFromStore<unknown>("notes")).filter(isNoteEdit);
+export async function readNoteEdits(userId?: string) {
+  return (await getAllFromStore<unknown>("notes"))
+    .filter(isNoteEdit)
+    .filter(
+      (record) =>
+        !userId || (record.value.note.userId ?? LEGACY_USER_ID) === userId,
+    )
+    .map((record) => ({
+      ...record,
+      value: {
+        ...record.value,
+        note: {
+          ...record.value.note,
+          userId: record.value.note.userId ?? LEGACY_USER_ID,
+        },
+      },
+    }));
 }
 
-export async function hasPendingNoteEdits() {
-  return (await readNoteEdits()).some(
+export async function hasPendingNoteEdits(userId?: string) {
+  return (await readNoteEdits(userId)).some(
     (record) => record.value.status === NoteSyncStatus.Pending,
   );
 }
@@ -120,9 +136,14 @@ export async function recordNoteSyncFailure(
   });
 }
 
-export async function resetNoteEditForRetry(id: string) {
+export async function resetNoteEditForRetry(
+  id: string,
+  userId = LEGACY_USER_ID,
+) {
   await modifyFromStore<StoredNoteEdit>("notes", id, (current) =>
-    current && current.value.status !== NoteSyncStatus.Synced
+    current &&
+    (current.value.note.userId ?? LEGACY_USER_ID) === userId &&
+    current.value.status !== NoteSyncStatus.Synced
       ? {
           ...current,
           value: {
@@ -137,8 +158,12 @@ export async function resetNoteEditForRetry(id: string) {
   );
 }
 
-export async function removeNoteEdit(id: string) {
-  await modifyFromStore<StoredNoteEdit>("notes", id, () => undefined);
+export async function removeNoteEdit(id: string, userId = LEGACY_USER_ID) {
+  await modifyFromStore<StoredNoteEdit>("notes", id, (current) =>
+    current && (current.value.note.userId ?? LEGACY_USER_ID) !== userId
+      ? current
+      : undefined,
+  );
 }
 
 function retryDelay(attempts: number) {

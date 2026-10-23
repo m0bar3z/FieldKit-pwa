@@ -1,11 +1,14 @@
 import { apiRoute, readJson } from "@/lib/api/server";
-import { memory } from "@/lib/memory/store";
+import { getTasks } from "@/lib/products/queries";
 import { taskSchema } from "@/lib/products/schemas";
 import { createTask } from "@/lib/products/store";
 
 export async function GET(request: Request) {
   return apiRoute(request, (user) =>
-    memory.tasks.filter((item) => item.userId === user.id && !item.deletedAt),
+    getTasks(
+      user.id,
+      new URL(request.url).searchParams.get("timeZone") ?? undefined,
+    ),
   );
 }
 export async function POST(request: Request) {

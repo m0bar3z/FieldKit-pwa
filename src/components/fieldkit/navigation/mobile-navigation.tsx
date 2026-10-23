@@ -1,12 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import {
-  isWorkspaceRouteActive,
-  primaryNavigation,
-} from "@/lib/navigation/workspace";
+import { isAppRouteActive, primaryNavigation } from "@/lib/navigation/app";
 import { cn } from "@/lib/shared/utils";
-import { WorkspaceLink as Link } from "./workspace-link";
+import { AppLink as Link } from "./app-link";
 
 export function MobileNavigation() {
   const pathname = usePathname();
@@ -19,13 +16,10 @@ export function MobileNavigation() {
         <Link
           key={href}
           href={href}
-          aria-current={
-            isWorkspaceRouteActive(pathname, href) ? "page" : undefined
-          }
+          aria-current={isAppRouteActive(pathname, href) ? "page" : undefined}
           className={cn(
             "flex min-h-12 min-w-16 flex-col items-center justify-center gap-1 rounded-lg px-2 text-[11px] text-muted-foreground transition-colors hover:text-foreground",
-            isWorkspaceRouteActive(pathname, href) &&
-              "bg-muted text-foreground",
+            isAppRouteActive(pathname, href) && "bg-muted text-foreground",
           )}
         >
           <Icon className="size-5" />

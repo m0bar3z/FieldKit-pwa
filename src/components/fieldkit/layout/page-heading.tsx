@@ -1,7 +1,7 @@
 import { ArrowLeftIcon } from "lucide-react";
 import type { Route } from "next";
 import type { ReactNode } from "react";
-import { WorkspaceLink as Link } from "@/components/fieldkit/navigation/workspace-link";
+import { AppLink as Link } from "@/components/fieldkit/navigation/app-link";
 
 export function PageHeading<T extends string>({
   eyebrow,

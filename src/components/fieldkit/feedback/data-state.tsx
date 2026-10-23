@@ -2,19 +2,19 @@
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { WorkspaceLoading } from "../layout/workspace-loading";
+import { AppLoading } from "../layout/app-loading";
 
-export function WorkspaceDataState({
+export function DataState({
   error,
   retry,
 }: {
   error: string;
   retry: () => void;
 }) {
-  if (!error) return <WorkspaceLoading />;
+  if (!error) return <AppLoading />;
   return (
     <Alert variant="destructive" role="alert">
-      <AlertTitle>Unable to load your workspace</AlertTitle>
+      <AlertTitle>Unable to load your notes and tasks</AlertTitle>
       <AlertDescription>
         <p>{error}</p>
         <Button

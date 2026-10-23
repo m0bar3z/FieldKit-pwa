@@ -1,9 +1,9 @@
 "use client";
 
 import { NotebookPenIcon } from "lucide-react";
-import { WorkspaceLink as Link } from "../navigation/workspace-link";
+import { AppLink as Link } from "../navigation/app-link";
 
-export function WorkspaceBrand() {
+export function AppBrand() {
   return (
     <Link href="/" className="flex min-h-11 items-center gap-3">
       <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">

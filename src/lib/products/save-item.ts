@@ -1,3 +1,4 @@
+import { LEGACY_USER_ID } from "@/lib/auth/types";
 import {
   IndexedDbAction,
   IndexedDbRecordType,
@@ -20,6 +21,8 @@ export async function saveItem(
 
   await modifyFromStore<StoredNoteEdit>("notes", id, (current) => {
     const previous = current?.value;
+    if (previous && (previous.note.userId ?? LEGACY_USER_ID) !== note.userId)
+      throw new Error("This note belongs to another account.");
     const baseline =
       previous && previous.note.version > note.version ? previous.note : note;
 

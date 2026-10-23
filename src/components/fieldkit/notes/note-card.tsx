@@ -1,5 +1,5 @@
 import { ArrowRightIcon, BookOpenIcon } from "lucide-react";
-import { WorkspaceLink as Link } from "@/components/fieldkit/navigation/workspace-link";
+import { AppLink as Link } from "@/components/fieldkit/navigation/app-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

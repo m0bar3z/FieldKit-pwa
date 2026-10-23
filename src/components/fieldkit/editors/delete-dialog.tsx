@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
+import { useUser } from "@/components/auth/user-provider";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -18,12 +19,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
-import {
-  ApiRequestError,
-  apiRequest,
-  refreshWorkspace,
-} from "@/lib/api/client";
+import { useAppFeedback } from "@/hooks/use-app-feedback";
+import { ApiRequestError, apiRequest, refreshItems } from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
 import type { FormResponse } from "@/lib/forms/types";
 import { deleteItemSchema } from "@/lib/products/schemas";
@@ -42,7 +39,8 @@ export function DeleteDialog({
   version: number;
 }) {
   const [open, setOpen] = useState(false);
-  const { notify } = useWorkspaceFeedback();
+  const { notify } = useAppFeedback();
+  const user = useUser();
   const form = useForm<z.infer<typeof deleteItemSchema>>({
     resolver: zodResolver(deleteItemSchema),
     values: { id, version: String(version), kind },
@@ -59,10 +57,11 @@ export function DeleteDialog({
         `/api/${kind === "task" ? "tasks" : "notes"}/${values.id}`,
         {
           method: "DELETE",
+          headers: { "X-FieldKit-User": user.id },
           body: JSON.stringify({ version: values.version }),
         },
       );
-      if (!result.destination) refreshWorkspace();
+      if (!result.destination) refreshItems(kind);
       if (result.success) notify(result.success);
       setOpen(false);
       if (result.destination) {
@@ -112,8 +111,8 @@ export function DeleteDialog({
             {kind === "task"
               ? " along with its attachment metadata and any reminders"
               : " along with its attachment metadata"}
-            . Deleted items are hidden from your workspace. There is no restore
-            action.
+            . Deleted items are hidden from your notes and tasks. There is no
+            restore action.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {/* TODO(PWA): Queue the deletion for offline synchronization. */}
@@ -121,7 +120,7 @@ export function DeleteDialog({
           form={form}
           onSubmit={form.handleSubmit(handleSubmit)}
           navigating={navigating}
-          pendingLabel={navigating ? "Opening workspace…" : "Deleting…"}
+          pendingLabel={navigating ? "Opening dashboard…" : "Deleting…"}
         >
           <AlertDialogFooter>
             <AlertDialogCancel className="min-h-11">

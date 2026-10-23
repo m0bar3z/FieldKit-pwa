@@ -66,7 +66,11 @@ export function Attachments({
           />
         ) : (
           items.map((attachment) => (
-            <AttachmentRow key={attachment.id} attachment={attachment} />
+            <AttachmentRow
+              key={attachment.id}
+              attachment={attachment}
+              kind={kind}
+            />
           ))
         )}
       </CardContent>

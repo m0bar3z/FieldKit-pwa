@@ -4,14 +4,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useId, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
+import { useUser } from "@/components/auth/user-provider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
-import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
-import {
-  ApiRequestError,
-  apiRequest,
-  refreshWorkspace,
-} from "@/lib/api/client";
+import { useAppFeedback } from "@/hooks/use-app-feedback";
+import { ApiRequestError, apiRequest, refreshTasks } from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
 import type { FormResponse } from "@/lib/forms/types";
 import { completionSchema } from "@/lib/products/schemas";
@@ -25,7 +22,8 @@ export function TaskCompletion({
   label?: boolean;
 }) {
   const id = useId();
-  const { notify } = useWorkspaceFeedback();
+  const { notify } = useAppFeedback();
+  const user = useUser();
   const form = useForm<z.infer<typeof completionSchema>>({
     resolver: zodResolver(completionSchema),
     values: {
@@ -45,13 +43,14 @@ export function TaskCompletion({
         `/api/tasks/${values.id}/completion`,
         {
           method: "PATCH",
+          headers: { "X-FieldKit-User": user.id },
           body: JSON.stringify({
             version: values.version,
             completed: values.completed,
           }),
         },
       );
-      refreshWorkspace();
+      refreshTasks();
       if (result.success) notify(result.success);
     } catch (error) {
       if (error instanceof ApiRequestError) {

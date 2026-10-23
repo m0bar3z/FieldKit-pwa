@@ -19,17 +19,29 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
-import { useWorkspace } from "@/hooks/use-workspace";
-import { WorkspaceDataState } from "../feedback/workspace-data-state";
+import { useNotes } from "@/hooks/use-notes";
+import { useTasks } from "@/hooks/use-tasks";
+import { DataState } from "../feedback/data-state";
 
 export function DashboardPage() {
-  const { workspace, error, retry } = useWorkspace();
-  if (error || !workspace)
-    return <WorkspaceDataState error={error} retry={retry} />;
+  const tasks = useTasks();
+  const notes = useNotes();
+  const tasksData = tasks.data;
+  const notesData = notes.data;
+  if (tasks.error || notes.error || !tasksData || !notesData)
+    return (
+      <DataState
+        error={tasks.error || notes.error}
+        retry={() => {
+          tasks.retry();
+          notes.retry();
+        }}
+      />
+    );
   return (
     <>
       <PageHeading
-        eyebrow={`Your workspace · ${workspace.timeZone}`}
+        eyebrow={`Your notes and tasks · ${tasksData.timeZone}`}
         status={<OnlineIndicator />}
         title="A little focus for today."
         description="Your tasks, notes, and plans. A little easier to keep together."
@@ -50,20 +62,20 @@ export function DashboardPage() {
         {[
           {
             label: "Due today",
-            count: workspace.counts.dueToday,
+            count: tasksData.counts.dueToday,
             caption: "Open tasks due on your local date",
             icon: CalendarDaysIcon,
           },
           {
             label: "Overdue",
-            count: workspace.counts.overdue,
+            count: tasksData.counts.overdue,
             caption: "Pick it up when you're ready",
             icon: Clock3Icon,
           },
           {
             label: "Notes",
-            count: workspace.counts.notes,
-            caption: "Ideas in your personal workspace",
+            count: notesData.items.length,
+            caption: "Ideas in your notes and tasks",
             icon: BookOpenIcon,
           },
         ].map(({ label, count, caption, icon: Icon }) => (
@@ -89,8 +101,8 @@ export function DashboardPage() {
           className="flex min-w-0 flex-col gap-5"
         >
           <TaskCollection
-            tasks={workspace.tasks}
-            timeZone={workspace.timeZone}
+            tasks={tasksData.items}
+            timeZone={tasksData.timeZone}
           />
         </section>
         <div className="flex min-w-0 flex-col gap-6">
@@ -106,19 +118,19 @@ export function DashboardPage() {
                 All notes
               </LinkButton>
             </div>
-            {!workspace.notes.length && (
+            {!notesData.items.length && (
               <EmptyItems
                 kind="notes"
                 title="An open page for your ideas"
-                description="Capture your first thought in your personal workspace."
+                description="Capture your first thought in your notes and tasks."
                 action={{ href: "/notes/new", label: "Write a note" }}
               />
             )}
-            {workspace.notes.slice(0, 3).map((note) => (
+            {notesData.items.slice(0, 3).map((note) => (
               <NoteCard
                 key={note.id}
                 note={note}
-                timeZone={workspace.timeZone}
+                timeZone={tasksData.timeZone}
               />
             ))}
           </section>

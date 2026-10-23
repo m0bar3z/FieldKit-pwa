@@ -9,7 +9,13 @@ import { downloadAttachment } from "@/lib/attachments/download";
 import type { Attachment } from "@/lib/products/types";
 import { AttachmentRemoveDialog } from "./attachment-remove-dialog";
 
-export function AttachmentRow({ attachment }: { attachment: Attachment }) {
+export function AttachmentRow({
+  attachment,
+  kind,
+}: {
+  attachment: Attachment;
+  kind: "task" | "note";
+}) {
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
   const downloadingRef = useRef(false);
@@ -56,7 +62,7 @@ export function AttachmentRow({ attachment }: { attachment: Attachment }) {
         >
           {downloading ? <Spinner /> : <DownloadIcon />}
         </Button>
-        <AttachmentRemoveDialog attachment={attachment} />
+        <AttachmentRemoveDialog attachment={attachment} kind={kind} />
       </div>
       {downloading && (
         <output className="text-xs text-muted-foreground">Downloading…</output>

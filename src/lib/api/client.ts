@@ -33,7 +33,18 @@ export async function apiRequest<T>(
   if (!response.ok) throw new ApiRequestError(result, response.status);
   return result as T;
 }
-export const WORKSPACE_CHANGED = "fieldkit-workspace-changed";
-export function refreshWorkspace() {
-  window.dispatchEvent(new Event(WORKSPACE_CHANGED));
+export const TASKS_CHANGED = "fieldkit-tasks-changed";
+export const NOTES_CHANGED = "fieldkit-notes-changed";
+
+export function refreshTasks() {
+  window.dispatchEvent(new Event(TASKS_CHANGED));
+}
+
+export function refreshNotes() {
+  window.dispatchEvent(new Event(NOTES_CHANGED));
+}
+
+export function refreshItems(kind: "task" | "note") {
+  if (kind === "task") refreshTasks();
+  else refreshNotes();
 }

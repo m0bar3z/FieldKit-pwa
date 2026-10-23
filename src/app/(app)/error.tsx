@@ -12,12 +12,12 @@ import {
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 
-export default function WorkspaceError({ retry }: { retry: () => void }) {
+export default function AppError({ retry }: { retry: () => void }) {
   const [pending, startTransition] = useTransition();
   return (
     <Empty>
       <EmptyHeader>
-        <EmptyTitle>Unable to load your workspace</EmptyTitle>
+        <EmptyTitle>Unable to load your notes and tasks</EmptyTitle>
         <EmptyDescription>Please try again in a moment.</EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
@@ -26,7 +26,7 @@ export default function WorkspaceError({ retry }: { retry: () => void }) {
           {pending ? "Trying again…" : "Try again"}
         </Button>
         <LinkButton href="/" variant="outline">
-          Back to workspace
+          Back to dashboard
         </LinkButton>
       </EmptyContent>
     </Empty>

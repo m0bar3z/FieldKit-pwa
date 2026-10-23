@@ -30,6 +30,7 @@ export type Task = {
 
 export type Note = {
   id: string;
+  userId: string;
   /** IndexedDB identity for a note that has not been saved to the server. */
   localId?: number;
   syncStatus?: NoteSyncStatus;
@@ -43,9 +44,9 @@ export type Note = {
   attachments: Attachment[];
 };
 
-export type Workspace = {
-  tasks: Task[];
-  notes: Note[];
+export type TasksData = {
+  userId: string;
+  items: Task[];
   today: string;
   timeZone: string;
   counts: {
@@ -53,6 +54,11 @@ export type Workspace = {
     overdue: number;
     completedTasks: number;
     openTasks: number;
-    notes: number;
   };
+};
+
+export type NotesData = {
+  userId: string;
+  items: Note[];
+  timeZone: string;
 };

@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { PencilIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useUser } from "@/components/auth/user-provider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,13 +16,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
+import { useAppFeedback } from "@/hooks/use-app-feedback";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import {
-  ApiRequestError,
-  apiRequest,
-  refreshWorkspace,
-} from "@/lib/api/client";
+import { ApiRequestError, apiRequest, refreshItems } from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
 import type { FormResponse } from "@/lib/forms/types";
 import { itemFormValues } from "@/lib/products/form-values";
@@ -36,7 +33,8 @@ export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
   const kind = task ? "task" : "note";
   const [open, setOpen] = useState(false);
   const isOnline = useOnlineStatus();
-  const { notify } = useWorkspaceFeedback();
+  const { notify } = useAppFeedback();
+  const user = useUser();
 
   const form = useForm<ItemFormValues>({
     resolver: zodResolver(itemFormSchema),
@@ -61,11 +59,12 @@ export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
           `/api/${kind === "task" ? "tasks" : "notes"}/${values.id}`,
           {
             method: "PATCH",
+            headers: { "X-FieldKit-User": user.id },
             body: JSON.stringify(values),
           },
         );
 
-        refreshWorkspace();
+        refreshItems(kind);
 
         if (result.success) notify(result.success);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { HouseIcon, MenuIcon, PlusIcon } from "lucide-react";
-import { type ReactNode, Suspense, useEffect, useState } from "react";
+import { type ReactNode, Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -11,15 +11,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { startNoteSync } from "@/lib/products/note-sync";
-import { WorkspaceFeedback } from "../feedback/workspace-feedback";
+import { AppFeedback } from "../feedback/app-feedback";
+import { AppNavigation } from "../navigation/app-navigation";
 import { LinkButton } from "../navigation/link-button";
 import { MobileNavigation } from "../navigation/mobile-navigation";
-import { WorkspaceNavigation } from "../navigation/workspace-navigation";
 import { InstallationGuide } from "../pwa/installation-guide";
 import { ServiceWorkerUpdatePrompt } from "../pwa/service-worker-update-prompt";
-import { WorkspaceBrand } from "./workspace-brand";
-import { WorkspaceClock } from "./workspace-clock";
+import { AppBrand } from "./app-brand";
+import { TaskClock } from "./task-clock";
 
 export function AppShell({
   children,
@@ -30,11 +29,10 @@ export function AppShell({
 }) {
   // Navigation state is UI-only; it is never stored in cookies or browser storage.
   const [menuOpen, setMenuOpen] = useState(false);
-  useEffect(() => startNoteSync(), []);
 
   return (
     <div className="min-h-dvh bg-background">
-      <WorkspaceClock />
+      <TaskClock />
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-3 focus:text-primary-foreground"
@@ -42,7 +40,7 @@ export function AppShell({
         Skip to content
       </a>
       <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r bg-sidebar px-5 py-7 lg:flex">
-        <WorkspaceBrand />
+        <AppBrand />
         <div className="mt-8">
           <Suspense
             fallback={
@@ -51,7 +49,7 @@ export function AppShell({
               </p>
             }
           >
-            <WorkspaceNavigation onNavigate={() => setMenuOpen(false)} />
+            <AppNavigation onNavigate={() => setMenuOpen(false)} />
           </Suspense>
         </div>
         <div className="mt-auto flex flex-col gap-4 pt-8">
@@ -95,18 +93,16 @@ export function AppShell({
                       </p>
                     }
                   >
-                    <WorkspaceNavigation
-                      onNavigate={() => setMenuOpen(false)}
-                    />
+                    <AppNavigation onNavigate={() => setMenuOpen(false)} />
                   </Suspense>
                 </div>
               </SheetContent>
             </Sheet>
-            <WorkspaceBrand />
+            <AppBrand />
           </div>
           <p className="hidden items-center gap-2 text-sm text-muted-foreground lg:flex">
             <HouseIcon className="size-4" />
-            My workspace
+            My notes and tasks
           </p>
           <div className="flex items-center gap-3">
             <InstallationGuide />
@@ -119,7 +115,7 @@ export function AppShell({
           className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-7 pb-28 outline-none sm:px-8 sm:py-10 lg:px-10 lg:pb-12"
         >
           <ServiceWorkerUpdatePrompt />
-          <WorkspaceFeedback />
+          <AppFeedback />
           {children}
         </main>
         <Suspense fallback={null}>

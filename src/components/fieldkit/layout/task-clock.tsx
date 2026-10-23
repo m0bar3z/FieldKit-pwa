@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { refreshWorkspace } from "@/lib/api/client";
+import { refreshNotes, refreshTasks } from "@/lib/api/client";
 import { calendarDateAt, TIME_ZONE_COOKIE } from "@/lib/products/presentation";
+import { refreshAppBadge } from "@/lib/pwa/app-badge";
 
-export function WorkspaceClock() {
+export function TaskClock() {
   useEffect(() => {
     let previousDay = "";
     function updateClock() {
@@ -17,8 +18,11 @@ export function WorkspaceClock() {
         // biome-ignore lint/suspicious/noDocumentCookie: This preference also works on browsers without the Cookie Store API.
         document.cookie = `${cookie}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
       }
-      if (changedZone || (previousDay && previousDay !== today))
-        refreshWorkspace();
+      if (changedZone || (previousDay && previousDay !== today)) {
+        refreshTasks();
+        void refreshAppBadge();
+      }
+      if (changedZone) refreshNotes();
       previousDay = today;
     }
     updateClock();

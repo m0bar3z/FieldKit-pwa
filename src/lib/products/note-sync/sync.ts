@@ -1,4 +1,5 @@
-import { refreshWorkspace } from "@/lib/api/client";
+import { refreshNotes } from "@/lib/api/client";
+import { LEGACY_USER_ID } from "@/lib/auth/types";
 import { NoteSyncStatus } from "@/lib/indexed-db/enums";
 import {
   NOTE_SYNC_CHANGED,
@@ -12,6 +13,7 @@ import {
 } from "./storage";
 
 type NoteSyncState = {
+  userId: string;
   running: Promise<void> | null;
   rescanRequested: boolean;
   timer: ReturnType<typeof setTimeout> | undefined;
@@ -21,6 +23,7 @@ type NoteSyncState = {
 
 // Runtime state shared by synchronization, retry scheduling, and browser events.
 const noteSyncState: NoteSyncState = {
+  userId: LEGACY_USER_ID,
   running: null,
   rescanRequested: false,
   timer: undefined,
@@ -29,7 +32,7 @@ const noteSyncState: NoteSyncState = {
 };
 
 export function notifyNoteChanges() {
-  refreshWorkspace();
+  refreshNotes();
   noteSyncState.channel?.postMessage("changed");
 }
 
@@ -54,7 +57,7 @@ function handleWorkerNoteChange(event: MessageEvent<unknown>) {
 }
 
 function handleNoteChange() {
-  refreshWorkspace();
+  refreshNotes();
   void runSync();
 }
 
@@ -66,7 +69,8 @@ function stopNoteSync() {
   cancelNoteSyncRetry();
 }
 
-export function startNoteSync() {
+export function startNoteSync(userId = LEGACY_USER_ID) {
+  noteSyncState.userId = userId;
   noteSyncState.subscribers += 1;
 
   if (noteSyncState.subscribers === 1) {
@@ -125,7 +129,7 @@ async function processPendingEdits(force: boolean) {
   do {
     noteSyncState.rescanRequested = false;
 
-    await processNoteSyncQueue(force, notifyNoteChanges);
+    await processNoteSyncQueue(force, notifyNoteChanges, noteSyncState.userId);
 
     force = false;
   } while (noteSyncState.rescanRequested && navigator.onLine);
@@ -140,7 +144,7 @@ function cancelNoteSyncRetry() {
 async function scheduleNoteSyncRetry(retry: () => void) {
   if (!noteSyncState.subscribers || !navigator.onLine) return;
 
-  const pending = (await readNoteEdits()).filter(
+  const pending = (await readNoteEdits(noteSyncState.userId)).filter(
     (record) => record.value.status === NoteSyncStatus.Pending,
   );
 
@@ -154,8 +158,8 @@ async function scheduleNoteSyncRetry(retry: () => void) {
   noteSyncState.timer = setTimeout(retry, Math.max(1000, next - Date.now()));
 }
 
-export async function retryNoteEdit(id: string) {
-  await resetNoteEditForRetry(id);
+export async function retryNoteEdit(id: string, userId = LEGACY_USER_ID) {
+  await resetNoteEditForRetry(id, userId);
 
   notifyNoteChanges();
   void requestNoteBackgroundSync();
@@ -163,10 +167,10 @@ export async function retryNoteEdit(id: string) {
   await syncPendingChanges(true);
 }
 
-export async function discardNoteEdit(id: string) {
+export async function discardNoteEdit(id: string, userId = LEGACY_USER_ID) {
   if (!navigator.locks && noteSyncState.running) await noteSyncState.running;
 
-  await withNoteSyncLock(() => removeNoteEdit(id));
+  await withNoteSyncLock(() => removeNoteEdit(id, userId));
 
   notifyNoteChanges();
 }

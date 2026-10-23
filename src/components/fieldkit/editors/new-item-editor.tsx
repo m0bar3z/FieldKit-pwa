@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useUser } from "@/components/auth/user-provider";
 import {
   Card,
   CardContent,
@@ -20,13 +21,9 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
-import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
+import { useAppFeedback } from "@/hooks/use-app-feedback";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import {
-  ApiRequestError,
-  apiRequest,
-  refreshWorkspace,
-} from "@/lib/api/client";
+import { ApiRequestError, apiRequest, refreshItems } from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
 import type { FormResponse } from "@/lib/forms/types";
 import { IndexedDbAction, IndexedDbRecordType } from "@/lib/indexed-db/enums";
@@ -39,7 +36,8 @@ import { LinkButton } from "../navigation/link-button";
 import { ItemFields } from "./item-fields";
 
 export function NewItemEditor({ kind }: { kind: "task" | "note" }) {
-  const { notify } = useWorkspaceFeedback();
+  const { notify } = useAppFeedback();
+  const user = useUser();
   const form = useForm<ItemFormValues>({
     resolver: zodResolver(itemFormSchema),
     defaultValues: itemFormValues(kind),
@@ -62,10 +60,11 @@ export function NewItemEditor({ kind }: { kind: "task" | "note" }) {
           {
             method: "POST",
             body: stringifiedValues,
+            headers: { "X-FieldKit-User": user.id },
           },
         );
 
-        if (!result.destination) refreshWorkspace();
+        if (!result.destination) refreshItems(kind);
 
         if (result.success) notify(result.success);
 
@@ -74,7 +73,10 @@ export function NewItemEditor({ kind }: { kind: "task" | "note" }) {
           router.push(result.destination as Route);
         }
       } else {
+        if (kind === "task")
+          throw new Error("Connect to the internet to create a task.");
         await addToStore("notes", {
+          userId: user.id,
           payload: values,
           kind,
           action: IndexedDbAction.Create,
@@ -107,7 +109,7 @@ export function NewItemEditor({ kind }: { kind: "task" | "note" }) {
             : "Give your ideas a little space"}
         </CardTitle>
         <CardDescription>
-          Start with a title. Everything stays in your personal workspace.
+          Start with a title. Everything stays in your notes and tasks.
         </CardDescription>
       </CardHeader>
       <ProductForm

@@ -4,18 +4,17 @@ import { PlusIcon } from "lucide-react";
 import { PageHeading } from "@/components/fieldkit/layout/page-heading";
 import { LinkButton } from "@/components/fieldkit/navigation/link-button";
 import { TaskCollection } from "@/components/fieldkit/tasks/task-collection";
-import { useWorkspace } from "@/hooks/use-workspace";
-import { WorkspaceDataState } from "../feedback/workspace-data-state";
+import { useTasks } from "@/hooks/use-tasks";
+import { DataState } from "../feedback/data-state";
 
 export function TasksPage() {
-  const { workspace, error, retry } = useWorkspace();
-  if (error || !workspace)
-    return <WorkspaceDataState error={error} retry={retry} />;
-  const { tasks } = workspace;
+  const { data, error, retry } = useTasks();
+  if (error || !data) return <DataState error={error} retry={retry} />;
+  const tasks = data.items;
   return (
     <>
       <PageHeading
-        eyebrow="Your personal workspace"
+        eyebrow="Your notes and tasks"
         title="Tasks"
         description="Your next steps, all in one place."
         actions={
@@ -25,7 +24,7 @@ export function TasksPage() {
           </LinkButton>
         }
       />
-      <TaskCollection tasks={tasks} timeZone={workspace.timeZone} />
+      <TaskCollection tasks={tasks} timeZone={data.timeZone} />
     </>
   );
 }

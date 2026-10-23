@@ -15,18 +15,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useWorkspace } from "@/hooks/use-workspace";
+import { useNotes } from "@/hooks/use-notes";
 import { formatNoteUpdated } from "@/lib/products/presentation";
-import { WorkspaceDataState } from "../feedback/workspace-data-state";
+import { DataState } from "../feedback/data-state";
 import { NoteSyncStatus } from "../notes/note-sync-status";
 
 export function NoteDetailPage({ id }: { id: string }) {
-  const { workspace, error, retry } = useWorkspace();
+  const { data, error, retry } = useNotes();
 
-  if (error || !workspace)
-    return <WorkspaceDataState error={error} retry={retry} />;
+  if (error || !data) return <DataState error={error} retry={retry} />;
 
-  const note = workspace.notes.find((item) => item.id === id);
+  const note = data.items.find((item) => item.id === id);
 
   if (!note) notFound();
   return (
@@ -35,7 +34,7 @@ export function NoteDetailPage({ id }: { id: string }) {
       <PageHeading
         eyebrow="Note"
         title={note.title}
-        description={formatNoteUpdated(note.updated, workspace.timeZone)}
+        description={formatNoteUpdated(note.updated, data.timeZone)}
         back={{ href: "/notes", label: "All notes" }}
         actions={<EditItemDialog note={note} />}
       />
@@ -60,9 +59,7 @@ export function NoteDetailPage({ id }: { id: string }) {
         <Card>
           <CardHeader>
             <CardTitle>At a glance</CardTitle>
-            <CardDescription>
-              A note in your personal workspace.
-            </CardDescription>
+            <CardDescription>A note in your notes and tasks.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-5">
             <Badge variant="outline">Plain-text note</Badge>

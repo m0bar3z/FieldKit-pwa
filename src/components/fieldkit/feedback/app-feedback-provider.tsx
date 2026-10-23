@@ -1,13 +1,9 @@
 "use client";
 
 import { type ReactNode, useCallback, useRef, useState } from "react";
-import { FeedbackContext, type Notice } from "./workspace-feedback-context";
+import { FeedbackContext, type Notice } from "./app-feedback-context";
 
-export function WorkspaceFeedbackProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function AppFeedbackProvider({ children }: { children: ReactNode }) {
   const noticeId = useRef(0);
   const [notice, setNotice] = useState<Notice | null>(null);
   const notify = useCallback((message: string) => {

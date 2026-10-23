@@ -8,10 +8,10 @@ import {
   AlertTitle,
 } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
+import { useAppFeedback } from "@/hooks/use-app-feedback";
 
-export function WorkspaceFeedback() {
-  const { notice, dismiss } = useWorkspaceFeedback();
+export function AppFeedback() {
+  const { notice, dismiss } = useAppFeedback();
   if (!notice) return null;
   return (
     <Alert key={notice.id}>

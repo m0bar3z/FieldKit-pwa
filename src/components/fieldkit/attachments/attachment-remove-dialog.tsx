@@ -5,6 +5,7 @@ import { Trash2Icon } from "lucide-react";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
+import { useUser } from "@/components/auth/user-provider";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -16,12 +17,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
-import {
-  ApiRequestError,
-  apiRequest,
-  refreshWorkspace,
-} from "@/lib/api/client";
+import { useAppFeedback } from "@/hooks/use-app-feedback";
+import { ApiRequestError, apiRequest, refreshItems } from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
 import type { FormResponse } from "@/lib/forms/types";
 import { identitySchema } from "@/lib/products/schemas";
@@ -31,11 +28,14 @@ import { SaveButton } from "../forms/save-button";
 
 export function AttachmentRemoveDialog({
   attachment,
+  kind,
 }: {
   attachment: Attachment;
+  kind: "task" | "note";
 }) {
   const [open, setOpen] = useState(false);
-  const { notify } = useWorkspaceFeedback();
+  const { notify } = useAppFeedback();
+  const user = useUser();
   const form = useForm<z.infer<typeof identitySchema>>({
     resolver: zodResolver(identitySchema),
     values: { id: attachment.id, version: String(attachment.version) },
@@ -50,10 +50,11 @@ export function AttachmentRemoveDialog({
         `/api/attachments/${values.id}`,
         {
           method: "DELETE",
+          headers: { "X-FieldKit-User": user.id },
           body: JSON.stringify({ version: values.version }),
         },
       );
-      refreshWorkspace();
+      refreshItems(kind);
       if (result.success) notify(result.success);
       setOpen(false);
     } catch (error) {

@@ -15,8 +15,8 @@ export function NoteSyncStatus({ note }: { note: Note }) {
     setBusy(true);
     setError("");
     try {
-      if (action === "retry") await retryNoteEdit(note.id);
-      else await discardNoteEdit(note.id);
+      if (action === "retry") await retryNoteEdit(note.id, note.userId);
+      else await discardNoteEdit(note.id, note.userId);
     } catch (error) {
       setError(
         error instanceof Error

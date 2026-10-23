@@ -6,6 +6,7 @@ import { FieldError } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { apiRequest } from "@/lib/api/client";
 import { updateAppBadge } from "@/lib/pwa/app-badge";
+import { resetSessionCache } from "@/lib/pwa/session-cache";
 
 export function SignOutButton() {
   const [pending, setPending] = useState(false);
@@ -20,6 +21,7 @@ export function SignOutButton() {
     try {
       await apiRequest("/api/auth/session", { method: "DELETE" });
       await updateAppBadge(0);
+      await resetSessionCache();
       window.location.assign("/login");
     } catch (error) {
       setError(

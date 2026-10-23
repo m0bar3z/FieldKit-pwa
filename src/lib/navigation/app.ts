@@ -7,6 +7,6 @@ export const primaryNavigation = [
   { href: "/notes", label: "Notes", icon: BookOpenIcon },
 ] satisfies { href: Route; label: string; icon: typeof SunIcon }[];
 
-export function isWorkspaceRouteActive(pathname: string, href: string) {
+export function isAppRouteActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }

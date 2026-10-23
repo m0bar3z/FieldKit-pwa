@@ -16,15 +16,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useWorkspace } from "@/hooks/use-workspace";
+import { useTasks } from "@/hooks/use-tasks";
 import { formatDueDate, formatReminder } from "@/lib/products/presentation";
-import { WorkspaceDataState } from "../feedback/workspace-data-state";
+import { DataState } from "../feedback/data-state";
 
 export function TaskDetailPage({ id }: { id: string }) {
-  const { workspace, error, retry } = useWorkspace();
-  if (error || !workspace)
-    return <WorkspaceDataState error={error} retry={retry} />;
-  const task = workspace.tasks.find((item) => item.id === id);
+  const { data, error, retry } = useTasks();
+  if (error || !data) return <DataState error={error} retry={retry} />;
+  const task = data.items.find((item) => item.id === id);
   if (!task) notFound();
   return (
     <>
@@ -87,7 +86,7 @@ export function TaskDetailPage({ id }: { id: string }) {
               <div>
                 <p className="text-xs text-muted-foreground">Reminder</p>
                 <p className="mt-1 text-sm">
-                  {formatReminder(task.reminderAt, workspace.timeZone)}
+                  {formatReminder(task.reminderAt, data.timeZone)}
                 </p>
               </div>
             </div>

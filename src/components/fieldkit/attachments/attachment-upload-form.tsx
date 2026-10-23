@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useId, useRef } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import type { z } from "zod";
+import { useUser } from "@/components/auth/user-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,12 +15,8 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { useWorkspaceFeedback } from "@/hooks/use-workspace-feedback";
-import {
-  ApiRequestError,
-  apiRequest,
-  refreshWorkspace,
-} from "@/lib/api/client";
+import { useAppFeedback } from "@/hooks/use-app-feedback";
+import { ApiRequestError, apiRequest, refreshItems } from "@/lib/api/client";
 import {
   ATTACHMENT_ACCEPT,
   ATTACHMENT_HELP,
@@ -39,7 +36,8 @@ export function AttachmentUploadForm({
   close: () => void;
 }) {
   const id = useId();
-  const { notify } = useWorkspaceFeedback();
+  const { notify } = useAppFeedback();
+  const user = useUser();
   const form = useForm<z.infer<typeof uploadAttachmentSchema>>({
     resolver: zodResolver(uploadAttachmentSchema),
     defaultValues: { kind, parentId, file: null },
@@ -55,9 +53,10 @@ export function AttachmentUploadForm({
     try {
       const result = await apiRequest<FormResponse>("/api/attachments", {
         method: "POST",
+        headers: { "X-FieldKit-User": user.id },
         body: toFormData(values),
       });
-      refreshWorkspace();
+      refreshItems(kind);
       if (result.success) notify(result.success);
       close();
     } catch (error) {

@@ -5,7 +5,7 @@ export default function manifes(): MetadataRoute.Manifest {
     name: "FieldKit Planner",
     short_name: "FieldKit",
     description:
-      "Keep your tasks and field notes organized in one simple personal workspace.",
+      "Keep your personal tasks and field notes organized in one simple app.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
