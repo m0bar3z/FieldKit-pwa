@@ -4,8 +4,9 @@ FieldKit is a PWA learning project: a simple personal app for **Notes +
 Tasks**, built with Next.js, React, Tailwind CSS, and shadcn/ui.
 
 This branch uses a small demo backend so development can focus on PWA features.
-Next.js API routes store tasks, notes, attachments, and sessions in server-side
-arrays. Supabase, Drizzle, PostgreSQL, registration, and migrations are removed.
+Next.js API routes store tasks, notes, and attachments in server-side arrays.
+Sessions use signed cookies that work across Vercel functions. Supabase, Drizzle,
+PostgreSQL, registration, and migrations are removed.
 
 ## Run locally
 
@@ -22,7 +23,11 @@ Open [localhost:3000](http://localhost:3000), then sign in with:
 - Second account: `second@fieldkit.app`
 - Password: `FieldKit123!`
 
-No database or authentication environment variables are needed. These public demo
+Before starting, generate a secret with `openssl rand -base64 32` and add it as
+`SESSION_SECRET` in `.env.local`; `.env.example` lists the required variable.
+On Vercel, add `SESSION_SECRET` to the project environment variables and redeploy.
+Keep the value stable within each environment and never expose it through a
+`NEXT_PUBLIC_` variable. No database configuration is needed. The public demo
 credentials are defined in `src/lib/auth/demo-account.ts`.
 
 ## Current features
@@ -31,7 +36,7 @@ credentials are defined in `src/lib/auth/demo-account.ts`.
 - Create, edit, search, and delete notes.
 - Search/filter tasks and show dashboard counts and due dates in the local time zone.
 - Upload, download, and remove small attachments.
-- Demo login/logout with an opaque HttpOnly session cookie.
+- Demo login/logout with a signed HttpOnly session cookie.
 - Account-owned tasks, notes, attachments, offline edits, and cached API data.
 - Loading, error, retry, empty, and success feedback.
 - Web app manifest/icons, Serwist registration/caching and offline fallback,
@@ -47,8 +52,9 @@ future learning tasks.
 
 ## Demo backend limitations
 
-The arrays are held in one Node.js process. **Restarting the server clears data,
-files, and sessions.** Sessions of the same account share its records; different
+The arrays are held in one Node.js process. **Restarting the server clears data
+and files.** Sessions stay valid while `SESSION_SECRET` stays the same, including
+across separate Vercel function instances. Sessions of the same account share its records; different
 accounts have separate records. Different
 processes or serverless instances have independent arrays. Use one local server
 for predictable behavior. This branch demonstrates PWA development rather than
@@ -86,7 +92,7 @@ src/app/sw.ts                   # Serwist worker configuration
 | `pnpm lint` | Biome checks |
 | `pnpm lint:fix` | Safe Biome fixes |
 | `pnpm typecheck` | Next.js route types and TypeScript checks |
-| `pnpm test:auth` | Login input validation checks |
+| `pnpm test:auth` | Login input validation and signed session checks |
 | `pnpm test:note-sync` | Note edit persistence, retry, and conflict checks |
 | `pnpm test:products` | Personal task/note APIs and account isolation checks |
 | `pnpm test:tooling` | Git workflow checks |

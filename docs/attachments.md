@@ -10,7 +10,8 @@ parent, download the file, or remove it.
 
 Metadata and bytes are held in the attachment array in `src/lib/memory/store.ts`.
 No storage bucket, external service, or environment configuration is required.
-Restarting the server loses the files along with tasks, notes, and sessions.
+Restarting the server loses the files along with tasks and notes. Signed sessions
+remain valid while the signing secret stays the same.
 
 Supported types are JPEG, PNG, WebP, GIF, PDF, and UTF-8 text, with a 3 MiB maximum
 per file. Client Zod validation checks selection, filename, extension, MIME type,
