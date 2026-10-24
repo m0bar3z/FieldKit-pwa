@@ -9,7 +9,9 @@ import { Separator } from "@/components/ui/separator";
 import { formatDueDate, formatReminder } from "@/lib/products/presentation";
 import type { Task } from "@/lib/products/types";
 import { cn } from "@/lib/shared/utils";
+import { EditItemDialog } from "../editors/edit-item-dialog";
 import { TaskCompletion } from "./task-completion";
+import { TaskSyncStatus } from "./task-sync-status";
 
 export function TaskList({
   tasks,
@@ -64,8 +66,14 @@ export function TaskList({
                   )}
                 </span>
               </Link>
+              <EditItemDialog task={task} />
               <ArrowRightIcon className="mt-5 hidden size-4 shrink-0 text-muted-foreground sm:block" />
             </div>
+            {task.syncStatus && (
+              <div className="pb-4">
+                <TaskSyncStatus task={task} />
+              </div>
+            )}
             {index < tasks.length - 1 && <Separator />}
           </div>
         );

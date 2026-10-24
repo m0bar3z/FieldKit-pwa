@@ -1,12 +1,14 @@
 "use client";
 
 import { BellIcon, CalendarDaysIcon } from "lucide-react";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { Attachments } from "@/components/fieldkit/attachments/attachments";
 import { DeleteDialog } from "@/components/fieldkit/editors/delete-dialog";
 import { EditItemDialog } from "@/components/fieldkit/editors/edit-item-dialog";
 import { PageHeading } from "@/components/fieldkit/layout/page-heading";
 import { TaskCompletion } from "@/components/fieldkit/tasks/task-completion";
+import { TaskSyncStatus } from "@/components/fieldkit/tasks/task-sync-status";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -22,11 +24,18 @@ import { DataState } from "../feedback/data-state";
 
 export function TaskDetailPage({ id }: { id: string }) {
   const { data, error, retry } = useTasks();
+  const router = useRouter();
+  const task = data?.items.find(
+    (item) => item.id === id || item.localId === id,
+  );
+  useEffect(() => {
+    if (task && task.id !== id) router.replace(`/tasks/${task.id}`);
+  }, [task, id, router]);
   if (error || !data) return <DataState error={error} retry={retry} />;
-  const task = data.items.find((item) => item.id === id);
   if (!task) notFound();
   return (
     <>
+      <TaskSyncStatus task={task} />
       <PageHeading
         eyebrow="Task"
         title={task.title}
@@ -49,7 +58,17 @@ export function TaskDetailPage({ id }: { id: string }) {
               <TaskCompletion task={task} label />
             </CardContent>
           </Card>
-          <Attachments items={task.attachments} kind="task" parentId={id} />
+          {task.localOnly ? (
+            <p className="text-sm text-muted-foreground">
+              Sync this task before adding attachments.
+            </p>
+          ) : (
+            <Attachments
+              items={task.attachments}
+              kind="task"
+              parentId={task.id}
+            />
+          )}
         </div>
         <Card>
           <CardHeader>
@@ -91,12 +110,14 @@ export function TaskDetailPage({ id }: { id: string }) {
               </div>
             </div>
             <Separator />
-            <DeleteDialog
-              kind="task"
-              title={task.title}
-              id={id}
-              version={task.version}
-            />
+            {!task.syncStatus && (
+              <DeleteDialog
+                kind="task"
+                title={task.title}
+                id={task.id}
+                version={task.version}
+              />
+            )}
           </CardContent>
         </Card>
       </div>

@@ -30,6 +30,7 @@ import { IndexedDbAction, IndexedDbRecordType } from "@/lib/indexed-db/enums";
 import { addToStore } from "@/lib/indexed-db/indexed-db";
 import { itemFormValues } from "@/lib/products/form-values";
 import { type ItemFormValues, itemFormSchema } from "@/lib/products/schemas";
+import { saveTask } from "@/lib/products/task-sync";
 import { ProductForm } from "../forms/product-form";
 import { SaveButton } from "../forms/save-button";
 import { LinkButton } from "../navigation/link-button";
@@ -52,6 +53,13 @@ export function NewItemEditor({ kind }: { kind: "task" | "note" }) {
     if (submitting.current || navigating) return;
     submitting.current = true;
     try {
+      if (values.kind === "task") {
+        const result = await saveTask(user.id, values);
+        notify(result.success);
+        setNavigating(true);
+        router.push("/tasks");
+        return;
+      }
       const stringifiedValues = JSON.stringify(values);
 
       if (isOnline) {
@@ -73,8 +81,6 @@ export function NewItemEditor({ kind }: { kind: "task" | "note" }) {
           router.push(result.destination as Route);
         }
       } else {
-        if (kind === "task")
-          throw new Error("Connect to the internet to create a task.");
         await addToStore("notes", {
           userId: user.id,
           payload: values,

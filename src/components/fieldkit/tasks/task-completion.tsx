@@ -8,6 +8,7 @@ import { useUser } from "@/components/auth/user-provider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
 import { useAppFeedback } from "@/hooks/use-app-feedback";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { ApiRequestError, apiRequest, refreshTasks } from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
 import type { FormResponse } from "@/lib/forms/types";
@@ -24,6 +25,8 @@ export function TaskCompletion({
   const id = useId();
   const { notify } = useAppFeedback();
   const user = useUser();
+  const online = useOnlineStatus();
+  const unavailable = !online || !!task.syncStatus || !!task.localOnly;
   const form = useForm<z.infer<typeof completionSchema>>({
     resolver: zodResolver(completionSchema),
     values: {
@@ -83,12 +86,17 @@ export function TaskCompletion({
               onBlur={field.onBlur}
               id={id}
               checked={task.completed}
-              disabled={pending}
+              disabled={pending || unavailable}
+              title={
+                unavailable
+                  ? "Connect and sync this task before changing completion."
+                  : undefined
+              }
               aria-invalid={fieldState.invalid}
               aria-label={`${task.title}: ${task.completed ? "mark incomplete" : "mark complete"}`}
               aria-describedby={error ? `${id}-error` : undefined}
               onCheckedChange={(completed) => {
-                if (pending || submitting.current) return;
+                if (pending || unavailable || submitting.current) return;
                 field.onChange(completed);
                 // TODO(PWA): Queue completion changes when offline mutation support is added.
                 void form.handleSubmit(handleSubmit)();

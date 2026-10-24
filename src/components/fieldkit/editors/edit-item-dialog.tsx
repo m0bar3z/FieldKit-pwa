@@ -24,6 +24,7 @@ import type { FormResponse } from "@/lib/forms/types";
 import { itemFormValues } from "@/lib/products/form-values";
 import { saveItem } from "@/lib/products/save-item";
 import { type ItemFormValues, itemFormSchema } from "@/lib/products/schemas";
+import { saveTask } from "@/lib/products/task-sync";
 import type { Note, Task } from "@/lib/products/types";
 import { ProductForm } from "../forms/product-form";
 import { SaveButton } from "../forms/save-button";
@@ -48,7 +49,11 @@ export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
     submitting.current = true;
 
     try {
-      if (values.kind === "note" && note && !isOnline) {
+      if (values.kind === "task" && task) {
+        const result = await saveTask(user.id, values, task);
+        notify(result.success);
+        setOpen(false);
+      } else if (values.kind === "note" && note && !isOnline) {
         const result = await saveItem(note, values);
 
         notify(result.success);
