@@ -1,4 +1,4 @@
-import type { NoteSyncStatus } from "@/lib/indexed-db/enums";
+import type { NoteSyncStatus, TaskSyncStatus } from "@/lib/indexed-db/enums";
 
 export type Attachment = {
   id: string;
@@ -17,6 +17,12 @@ export type TaskFilter = "all" | "open" | TaskGroup;
 
 export type Task = {
   id: string;
+  userId: string;
+  /** Original device ID, retained as an alias after creation synchronizes. */
+  localId?: string;
+  localOnly?: boolean;
+  syncStatus?: TaskSyncStatus;
+  syncError?: string;
   title: string;
   description: string;
   version: number;

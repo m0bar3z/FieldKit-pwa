@@ -14,6 +14,7 @@ const storagePlugin = {
     plugin.onLoad({ filter: /.*/, namespace: "test" }, () => ({
       contents: `
         export const getAllFromStore = () => storage.read();
+        export const findFromStore = (...args) => storage.find(...args);
         export const modifyFromStore = (...args) => storage.modify(...args);
       `,
     }));

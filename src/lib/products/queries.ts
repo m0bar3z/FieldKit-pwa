@@ -46,6 +46,7 @@ export function getTasks(userId: string, zone?: string): TasksData {
     memory.tasks.filter((item) => item.userId === userId && !item.deletedAt),
   ).map((item) => ({
     id: item.id,
+    userId,
     version: item.version,
     title: item.title,
     description: item.description,

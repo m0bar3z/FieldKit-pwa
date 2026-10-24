@@ -9,6 +9,7 @@ export function useItems<T extends { userId: string }>(
   kind: "tasks" | "notes",
   changedEvent: string,
   merge?: (data: T) => Promise<T>,
+  offlineFallback?: (userId: string) => Promise<T>,
 ) {
   const user = useUser();
   const [data, setData] = useState<T | null>(null);
@@ -40,6 +41,21 @@ export function useItems<T extends { userId: string }>(
           window.location.assign("/login");
           return;
         }
+        if (
+          offlineFallback &&
+          (!(error instanceof ApiRequestError) || error.status >= 500)
+        ) {
+          try {
+            const local = await offlineFallback(user.id);
+            if (!controller.signal.aborted) {
+              setData(local);
+              setError("");
+            }
+            return;
+          } catch {
+            /* Show the original error if local storage is also unavailable. */
+          }
+        }
         setError(
           error instanceof Error
             ? error.message
@@ -49,7 +65,7 @@ export function useItems<T extends { userId: string }>(
     }
     void load();
     return () => controller.abort();
-  }, [kind, user.id, revision, merge]);
+  }, [kind, user.id, revision, merge, offlineFallback]);
 
   useEffect(() => {
     window.addEventListener(changedEvent, retry);

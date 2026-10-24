@@ -14,3 +14,9 @@ export enum NoteSyncStatus {
   Failed = "failed",
   Synced = "synced",
 }
+
+export enum TaskSyncStatus {
+  Pending = "pending",
+  Failed = "failed",
+  Synced = "synced",
+}

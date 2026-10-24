@@ -6,6 +6,8 @@ import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { ExpirationPlugin, NetworkFirst, NetworkOnly, Serwist } from "serwist";
 import { NOTE_SYNC_TAG } from "@/lib/products/note-sync/background-sync";
 import { syncNoteEditsInBackground } from "@/lib/products/note-sync/worker";
+import { TASK_SYNC_TAG } from "@/lib/products/task-sync/background-sync";
+import { syncTasksInBackground } from "@/lib/products/task-sync/worker";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -70,5 +72,8 @@ serwist.addEventListeners();
 self.addEventListener("sync", (event) => {
   if (event.tag === NOTE_SYNC_TAG) {
     event.waitUntil(syncNoteEditsInBackground(self.clients));
+  }
+  if (event.tag === TASK_SYNC_TAG) {
+    event.waitUntil(syncTasksInBackground(self.clients));
   }
 });
