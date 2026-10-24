@@ -52,10 +52,34 @@ updates while closed. The dashboard keeps showing the overdue count in-app.
 
 Existing note edits use `src/lib/products/save-item.ts`. The latest title and
 content are saved in IndexedDB with the server ID and original version, then
-overlaid onto the account's cached notes. Tasks retain their direct API save path.
+overlaid onto the account's cached notes.
 New offline-created notes are stored with their owner and displayed locally but
-are not synchronized by the note-edit queue. Creating tasks requires connectivity.
+are not synchronized by the note-edit queue.
 Existing unowned local edits and drafts belong to the original demo account.
+
+Task creation and edits use `src/lib/products/task-sync/index.ts`. Saves first
+commit to IndexedDB and immediately overlay the task list and dashboard counts.
+The account's last task list is stored separately in the tasks store for reads
+when the API and service-worker cache are unavailable. Pending new tasks can be
+edited from the task list before upload. Temporary IDs become server IDs after
+creation, with the old ID retained as a detail-page alias.
+
+Task synchronization runs after saving, on startup/reconnection, on manual retry,
+and through the `fieldkit-task-changes` Background Sync tag where supported.
+Page and worker processing share Web Locks where available. Each upload persists
+an immutable attempt with a UUID `mutationId`; POST/PATCH accept that optional
+field and retain account-scoped receipts in server memory. Repeating the same
+request returns its original result. Reusing a mutation ID with different input
+returns 409. This prevents duplicates and handles lost responses within one
+demo server's lifetime, including when Web Locks are unavailable.
+
+Edits made during upload stay pending and use the acknowledged server ID/version
+for the next attempt. Network/server failures retry with exponential backoff
+capped at 60 seconds while open. Authentication/validation/version failures keep
+the local changes and offer retry/discard controls. Conflicts never overwrite
+the server version automatically. Task completion/deletion still require the
+network and are unavailable until pending task changes synchronize. Attachment
+uploads for new tasks wait for a server ID. Unsaved drafts are not persisted.
 
 Note edits request service worker Background Sync where supported. Saving,
 startup, reconnection, and manual retry register the `fieldkit-note-edits` tag

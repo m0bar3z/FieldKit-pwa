@@ -42,13 +42,23 @@ credentials are defined in `src/lib/auth/demo-account.ts`.
 - Web app manifest/icons, Serwist registration/caching and offline fallback,
   online/offline indicators, update prompts, and installation guidance.
 
+Task creation and edits are saved in IndexedDB first, displayed immediately with
+pending/failed sync feedback, and synchronized after saving, on startup, and on
+reconnection. New tasks receive a temporary device ID that is replaced by the
+server ID after upload. Retried requests cannot create duplicate tasks or reapply
+an acknowledged edit within the demo server's lifetime. Version conflicts retain
+local changes for review, with retry/discard controls. Each account's last task
+list is also stored locally for offline reading without a service-worker cache.
+
 Edits to existing notes are saved in IndexedDB and synchronized on startup,
 reconnection, and after saving while the app is open. Background Sync also runs
 through the service worker where supported. The installed app badge shows the
 current account's overdue task count where supported. Cached API reads are
 overlaid with local edits. Offline-created notes can be read locally; syncing
-new notes, offline task changes, unsaved drafts, and reminder delivery remain
+new notes, offline task completion/deletion, unsaved drafts, and reminder delivery remain
 future learning tasks.
+Task attachments also require connectivity. Completion and deletion are unavailable
+until pending task creation/edits have synchronized.
 
 ## Demo backend limitations
 
@@ -94,6 +104,7 @@ src/app/sw.ts                   # Serwist worker configuration
 | `pnpm typecheck` | Next.js route types and TypeScript checks |
 | `pnpm test:auth` | Login input validation and signed session checks |
 | `pnpm test:note-sync` | Note edit persistence, retry, and conflict checks |
+| `pnpm test:task-sync` | Offline task creation/editing, retries, ownership, and worker sync |
 | `pnpm test:products` | Personal task/note APIs and account isolation checks |
 | `pnpm test:tooling` | Git workflow checks |
 
