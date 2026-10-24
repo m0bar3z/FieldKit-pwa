@@ -44,6 +44,13 @@ export const noteSchema = z.object({
   content: productText(100000, false, false),
 });
 
+export const taskCreateSchema = taskSchema.extend({
+  mutationId: productIdSchema.optional(),
+});
+export const taskUpdateSchema = taskCreateSchema.extend({
+  version: versionSchema,
+});
+
 // IDs/versions are present for editing; creation gets its identity from the server.
 const editorIdentity = identitySchema.partial().shape;
 export const itemFormSchema = z.discriminatedUnion("kind", [

@@ -3,9 +3,10 @@ import {
   identitySchema,
   productIdSchema,
   taskSchema,
-  versionSchema,
+  taskUpdateSchema,
 } from "@/lib/products/schemas";
 import { deleteItem, getTask, updateTask } from "@/lib/products/store";
+import { taskMutation } from "@/lib/products/task-mutations";
 
 type Context = { params: Promise<{ id: string }> };
 export async function GET(request: Request, { params }: Context) {
@@ -17,12 +18,13 @@ export async function PATCH(request: Request, { params }: Context) {
   return apiRoute(request, async (user) => {
     const id = productIdSchema.parse((await params).id);
     const body = await readJson(request);
-    const input = taskSchema.extend({ version: versionSchema }).parse(body);
-    const item = updateTask(
+    const input = taskUpdateSchema.parse(body);
+    const item = taskMutation(
       user.id,
-      id,
-      Number(input.version),
-      taskSchema.parse(input),
+      input.mutationId,
+      ["update", id, input],
+      () =>
+        updateTask(user.id, id, Number(input.version), taskSchema.parse(input)),
     );
     return { success: "Task saved.", item };
   });

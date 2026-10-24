@@ -53,6 +53,95 @@ const bundle = await build({
 const firstId = "fieldkit-demo-user";
 const secondId = "fieldkit-second-demo-user";
 
+test("task creation retries are idempotent and mutation IDs are scoped to the account", async () => {
+  const { api, signIn, call } = server();
+  await signIn(firstId);
+  const body = {
+    title: "Offline creation",
+    description: "",
+    dueDate: "",
+    mutationId: crypto.randomUUID(),
+  };
+  const first = await (
+    await call(api.tasksPOST, { method: "POST", body })
+  ).json();
+  const retry = await (
+    await call(api.tasksPOST, { method: "POST", body })
+  ).json();
+  assert.equal(first.item.id, retry.item.id);
+  assert.equal((await (await call(api.tasksGET)).json()).items.length, 1);
+  const changed = await call(api.tasksPOST, {
+    method: "POST",
+    body: { ...body, title: "Different payload" },
+  });
+  assert.equal(changed.status, 409);
+  await signIn(secondId);
+  const other = await (
+    await call(api.tasksPOST, { method: "POST", body })
+  ).json();
+  assert.notEqual(other.item.id, first.item.id);
+  assert.equal(other.item.userId, secondId);
+});
+
+test("task edit retries replay their receipt without reapplying changes or overwriting newer edits", async () => {
+  const { api, signIn, call } = server();
+  await signIn(firstId);
+  const task = api.createTask(firstId, {
+    title: "Original",
+    description: "",
+    dueDate: "",
+  });
+  const body = {
+    title: "Offline edit",
+    description: "",
+    dueDate: "",
+    version: "1",
+    mutationId: crypto.randomUUID(),
+  };
+  const first = await (
+    await call(api.taskPATCH, { id: task.id, method: "PATCH", body })
+  ).json();
+  assert.equal(first.item.version, 2);
+  await call(api.taskPATCH, {
+    id: task.id,
+    method: "PATCH",
+    body: {
+      ...body,
+      version: "2",
+      title: "Newer edit",
+      mutationId: crypto.randomUUID(),
+    },
+  });
+  const replay = await (
+    await call(api.taskPATCH, { id: task.id, method: "PATCH", body })
+  ).json();
+  assert.equal(replay.item.version, 2);
+  const current = await (await call(api.taskGET, { id: task.id })).json();
+  assert.equal(current.title, "Newer edit");
+  assert.equal(current.version, 3);
+  const conflict = await call(api.taskPATCH, {
+    id: task.id,
+    method: "PATCH",
+    body: { ...body, mutationId: crypto.randomUUID() },
+  });
+  assert.equal(conflict.status, 409);
+});
+
+test("task APIs reject invalid mutation IDs", async () => {
+  const { api, signIn, call } = server();
+  await signIn(firstId);
+  const result = await call(api.tasksPOST, {
+    method: "POST",
+    body: {
+      title: "Invalid",
+      description: "",
+      dueDate: "",
+      mutationId: "invalid",
+    },
+  });
+  assert.equal(result.status, 400);
+});
+
 function server() {
   const context = vm.createContext({
     require: createRequire(import.meta.url),
