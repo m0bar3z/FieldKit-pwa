@@ -2,7 +2,7 @@
 import type { IndexedDbAction } from "./enums";
 
 const DB_NAME = "fieldkit";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const NOTES_NAME = "notes";
 const TASKS_NAME = "tasks";
 
@@ -14,7 +14,7 @@ export type StoredRecord<T> = {
   value: T;
 };
 
-const openDB = (storeName: string): Promise<IDBDatabase> => {
+const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     let blocked = false;
@@ -22,23 +22,25 @@ const openDB = (storeName: string): Promise<IDBDatabase> => {
     request.onupgradeneeded = () => {
       const db = request.result;
 
-      const store = db.objectStoreNames.contains(storeName)
-        ? request.transaction!.objectStore(storeName)
-        : db.createObjectStore(storeName, {
-            autoIncrement: true,
-            keyPath: "id",
-          });
+      for (const storeName of [NOTES_NAME, TASKS_NAME]) {
+        const store = db.objectStoreNames.contains(storeName)
+          ? request.transaction!.objectStore(storeName)
+          : db.createObjectStore(storeName, {
+              autoIncrement: true,
+              keyPath: "id",
+            });
 
-      if (!store.indexNames.contains("by_action")) {
-        store.createIndex("by_action", "value.action");
-      }
+        if (!store.indexNames.contains("by_action")) {
+          store.createIndex("by_action", "value.action");
+        }
 
-      if (!store.indexNames.contains("by_createdAt")) {
-        store.createIndex("by_createdAt", "createdAt");
-      }
+        if (!store.indexNames.contains("by_createdAt")) {
+          store.createIndex("by_createdAt", "createdAt");
+        }
 
-      if (!store.indexNames.contains("by_recordType")) {
-        store.createIndex("by_recordType", "value.recordType");
+        if (!store.indexNames.contains("by_recordType")) {
+          store.createIndex("by_recordType", "value.recordType");
+        }
       }
     };
 
@@ -70,7 +72,7 @@ const execute = async <T>(
   mode: IDBTransactionMode,
   action: (store: IDBObjectStore) => IDBRequest<T>,
 ) => {
-  const db = await openDB(name);
+  const db = await openDB();
 
   return new Promise<T>((resolve, reject) => {
     const tx = db.transaction(name, mode);
@@ -126,7 +128,7 @@ export const modifyFromStore = async <T>(
   key: IDBValidKey,
   change: (current: StoredRecord<T> | undefined) => StoredRecord<T> | undefined,
 ): Promise<StoredRecord<T> | undefined> => {
-  const db = await openDB(storeName);
+  const db = await openDB();
 
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, "readwrite");
