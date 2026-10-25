@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { formatDueDate, formatReminder } from "@/lib/products/presentation";
 import type { Task } from "@/lib/products/types";
 import { cn } from "@/lib/shared/utils";
+import { DeleteDialog } from "../editors/delete-dialog";
 import { EditItemDialog } from "../editors/edit-item-dialog";
 import { TaskCompletion } from "./task-completion";
 import { TaskSyncStatus } from "./task-sync-status";
@@ -66,7 +67,19 @@ export function TaskList({
                   )}
                 </span>
               </Link>
-              <EditItemDialog task={task} />
+              {!task.deletionPending && (
+                <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row">
+                  <EditItemDialog task={task} />
+                  <DeleteDialog
+                    kind="task"
+                    task={task}
+                    title={task.title}
+                    id={task.id}
+                    version={task.version}
+                    redirect={false}
+                  />
+                </div>
+              )}
               <ArrowRightIcon className="mt-5 hidden size-4 shrink-0 text-muted-foreground sm:block" />
             </div>
             {task.syncStatus && (

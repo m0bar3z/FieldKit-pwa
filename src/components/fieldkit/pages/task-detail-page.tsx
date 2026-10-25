@@ -2,7 +2,7 @@
 
 import { BellIcon, CalendarDaysIcon } from "lucide-react";
 import { notFound, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Attachments } from "@/components/fieldkit/attachments/attachments";
 import { DeleteDialog } from "@/components/fieldkit/editors/delete-dialog";
 import { EditItemDialog } from "@/components/fieldkit/editors/edit-item-dialog";
@@ -21,16 +21,25 @@ import { Separator } from "@/components/ui/separator";
 import { useTasks } from "@/hooks/use-tasks";
 import { formatDueDate, formatReminder } from "@/lib/products/presentation";
 import { DataState } from "../feedback/data-state";
+import { LinkButton } from "../navigation/link-button";
 
 export function TaskDetailPage({ id }: { id: string }) {
   const { data, error, retry } = useTasks();
   const router = useRouter();
+  const [deleted, setDeleted] = useState(false);
   const task = data?.items.find(
     (item) => item.id === id || item.localId === id,
   );
   useEffect(() => {
     if (task && task.id !== id) router.replace(`/tasks/${task.id}`);
   }, [task, id, router]);
+  if (deleted)
+    return (
+      <div className="flex flex-col items-start gap-4">
+        <output>Task deleted on this device.</output>
+        <LinkButton href="/tasks">Back to tasks</LinkButton>
+      </div>
+    );
   if (error || !data) return <DataState error={error} retry={retry} />;
   if (!task) notFound();
   return (
@@ -41,7 +50,7 @@ export function TaskDetailPage({ id }: { id: string }) {
         title={task.title}
         description="A clear next step, with the details close at hand."
         back={{ href: "/tasks", label: "All tasks" }}
-        actions={<EditItemDialog task={task} />}
+        actions={!task.deletionPending && <EditItemDialog task={task} />}
       />
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-6">
@@ -110,9 +119,11 @@ export function TaskDetailPage({ id }: { id: string }) {
               </div>
             </div>
             <Separator />
-            {!task.syncStatus && (
+            {!task.deletionPending && (
               <DeleteDialog
                 kind="task"
+                task={task}
+                onDeleted={() => setDeleted(true)}
                 title={task.title}
                 id={task.id}
                 version={task.version}

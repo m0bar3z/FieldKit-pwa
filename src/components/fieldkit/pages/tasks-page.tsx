@@ -24,6 +24,13 @@ export function TasksPage() {
           </LinkButton>
         }
       />
+      {!!data.pendingDeletions && (
+        <output className="text-sm text-muted-foreground">
+          {data.pendingDeletions}{" "}
+          {data.pendingDeletions === 1 ? "deletion saved" : "deletions saved"}{" "}
+          on this device. Waiting to sync.
+        </output>
+      )}
       <TaskCollection tasks={tasks} timeZone={data.timeZone} />
     </>
   );

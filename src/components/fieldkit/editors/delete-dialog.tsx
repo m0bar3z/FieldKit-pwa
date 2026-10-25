@@ -24,6 +24,8 @@ import { ApiRequestError, apiRequest, refreshItems } from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
 import type { FormResponse } from "@/lib/forms/types";
 import { deleteItemSchema } from "@/lib/products/schemas";
+import { deleteTask } from "@/lib/products/task-sync";
+import type { Task } from "@/lib/products/types";
 import { ProductForm } from "../forms/product-form";
 import { SaveButton } from "../forms/save-button";
 
@@ -32,11 +34,17 @@ export function DeleteDialog({
   title,
   id,
   version,
+  task,
+  redirect = true,
+  onDeleted,
 }: {
   kind: "task" | "note";
   title: string;
   id: string;
   version: number;
+  task?: Task;
+  redirect?: boolean;
+  onDeleted?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const { notify } = useAppFeedback();
@@ -53,14 +61,23 @@ export function DeleteDialog({
     if (submitting.current || navigating) return;
     submitting.current = true;
     try {
-      const result = await apiRequest<FormResponse>(
-        `/api/${kind === "task" ? "tasks" : "notes"}/${values.id}`,
-        {
-          method: "DELETE",
-          headers: { "X-FieldKit-User": user.id },
-          body: JSON.stringify({ version: values.version }),
-        },
-      );
+      if (kind === "task") {
+        if (!task) throw new Error("Reload your tasks and try again.");
+        const result = await deleteTask(user.id, task);
+        notify(result.success);
+        setOpen(false);
+        onDeleted?.();
+        if (redirect) {
+          setNavigating(true);
+          router.push("/tasks");
+        }
+        return;
+      }
+      const result = await apiRequest<FormResponse>(`/api/notes/${values.id}`, {
+        method: "DELETE",
+        headers: { "X-FieldKit-User": user.id },
+        body: JSON.stringify({ version: values.version }),
+      });
       if (!result.destination) refreshItems(kind);
       if (result.success) notify(result.success);
       setOpen(false);
@@ -115,7 +132,6 @@ export function DeleteDialog({
             restore action.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {/* TODO(PWA): Queue the deletion for offline synchronization. */}
         <ProductForm
           form={form}
           onSubmit={form.handleSubmit(handleSubmit)}

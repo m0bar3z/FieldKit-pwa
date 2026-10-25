@@ -32,7 +32,11 @@ export function TaskSyncStatus({ task }: { task: Task }) {
   if (task.syncStatus !== SyncStatus.Failed) return null;
   return (
     <Alert variant="destructive">
-      <AlertTitle>This task could not be synced</AlertTitle>
+      <AlertTitle>
+        {task.deletionPending
+          ? "This task could not be deleted"
+          : "This task could not be synced"}
+      </AlertTitle>
       <AlertDescription>
         <p>{task.syncError} Your changes are still saved on this device.</p>
         {error && <p role="alert">{error}</p>}
@@ -49,7 +53,11 @@ export function TaskSyncStatus({ task }: { task: Task }) {
             disabled={busy}
             onClick={() => void act(true)}
           >
-            {task.localOnly ? "Discard local task" : "Discard local changes"}
+            {task.deletionPending
+              ? "Keep task"
+              : task.localOnly
+                ? "Discard local task"
+                : "Discard local changes"}
           </Button>
         </div>
       </AlertDescription>
