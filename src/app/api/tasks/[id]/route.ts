@@ -1,8 +1,8 @@
 import { apiRoute, readJson } from "@/lib/api/server";
 import {
-  identitySchema,
   productIdSchema,
-  taskSchema,
+  taskDeleteSchema,
+  taskStateSchema,
   taskUpdateSchema,
 } from "@/lib/products/schemas";
 import { deleteItem, getTask, updateTask } from "@/lib/products/store";
@@ -24,7 +24,12 @@ export async function PATCH(request: Request, { params }: Context) {
       input.mutationId,
       ["update", id, input],
       () =>
-        updateTask(user.id, id, Number(input.version), taskSchema.parse(input)),
+        updateTask(
+          user.id,
+          id,
+          Number(input.version),
+          taskStateSchema.parse(input),
+        ),
     );
     return { success: "Task saved.", item };
   });
@@ -32,10 +37,17 @@ export async function PATCH(request: Request, { params }: Context) {
 export async function DELETE(request: Request, { params }: Context) {
   return apiRoute(request, async (user) => {
     const id = productIdSchema.parse((await params).id);
-    const input = identitySchema
-      .omit({ id: true })
-      .parse(await readJson(request));
-    deleteItem(user.id, "task", id, Number(input.version));
-    return { success: "Task deleted.", destination: "/tasks" };
+    const input = taskDeleteSchema.parse(await readJson(request));
+    const item = taskMutation(
+      user.id,
+      input.mutationId,
+      ["delete", id, input],
+      () => {
+        const task = getTask(user.id, id);
+        deleteItem(user.id, "task", id, Number(input.version));
+        return task;
+      },
+    );
+    return { success: "Task deleted.", destination: "/tasks", item };
   });
 }

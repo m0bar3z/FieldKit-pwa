@@ -142,6 +142,154 @@ test("task APIs reject invalid mutation IDs", async () => {
   assert.equal(result.status, 400);
 });
 
+test("task completion retries replay the acknowledged version without toggling twice", async () => {
+  const { api, signIn, call } = server();
+  await signIn(firstId);
+  const task = api.createTask(firstId, {
+    title: "Complete offline",
+    description: "",
+    dueDate: "",
+  });
+  const body = {
+    completed: true,
+    version: "1",
+    mutationId: crypto.randomUUID(),
+  };
+  const first = await (
+    await call(api.completePATCH, { id: task.id, method: "PATCH", body })
+  ).json();
+  const retry = await (
+    await call(api.completePATCH, { id: task.id, method: "PATCH", body })
+  ).json();
+  assert.equal(first.item.version, 2);
+  assert.equal(retry.item.version, 2);
+  assert.equal(api.getTask(firstId, task.id).completed, true);
+  assert.equal(api.getTask(firstId, task.id).version, 2);
+  const changed = await call(api.completePATCH, {
+    id: task.id,
+    method: "PATCH",
+    body: { ...body, completed: false },
+  });
+  assert.equal(changed.status, 409);
+  await signIn(secondId);
+  const foreign = await call(api.completePATCH, {
+    id: task.id,
+    method: "PATCH",
+    body,
+  });
+  assert.equal(foreign.status, 404);
+});
+
+test("task creation and edits accept completion alongside text without losing version protection", async () => {
+  const { api, signIn, call } = server();
+  await signIn(firstId);
+  const created = await (
+    await call(api.tasksPOST, {
+      method: "POST",
+      body: {
+        title: "Already done",
+        description: "",
+        dueDate: "",
+        completed: true,
+        mutationId: crypto.randomUUID(),
+      },
+    })
+  ).json();
+  assert.equal(created.item.completed, true);
+  const body = {
+    title: "Reopened",
+    description: "Updated offline",
+    dueDate: "",
+    completed: false,
+    version: "1",
+    mutationId: crypto.randomUUID(),
+  };
+  const updated = await (
+    await call(api.taskPATCH, { id: created.item.id, method: "PATCH", body })
+  ).json();
+  assert.equal(updated.item.completed, false);
+  assert.equal(updated.item.description, "Updated offline");
+  const retry = await (
+    await call(api.taskPATCH, { id: created.item.id, method: "PATCH", body })
+  ).json();
+  assert.equal(retry.item.version, 2);
+  const stale = await call(api.taskPATCH, {
+    id: created.item.id,
+    method: "PATCH",
+    body: { ...body, completed: true, mutationId: crypto.randomUUID() },
+  });
+  assert.equal(stale.status, 409);
+  const invalid = await call(api.tasksPOST, {
+    method: "POST",
+    body: { title: "Invalid", description: "", dueDate: "", completed: "true" },
+  });
+  assert.equal(invalid.status, 400);
+});
+
+test("task deletion retries return their original receipt and delete attachments only once", async () => {
+  const { api, signIn, call } = server();
+  await signIn(firstId);
+  const task = api.createTask(firstId, {
+    title: "Delete offline",
+    description: "",
+    dueDate: "",
+  });
+  const attachment = api.addAttachment(firstId, "task", task.id, {
+    name: "file.txt",
+    mimeType: "text/plain",
+    bytes: new TextEncoder().encode("attachment"),
+  });
+  const body = {
+    version: String(task.version),
+    mutationId: crypto.randomUUID(),
+  };
+  const first = await (
+    await call(api.taskDELETE, { id: task.id, method: "DELETE", body })
+  ).json();
+  const retry = await (
+    await call(api.taskDELETE, { id: task.id, method: "DELETE", body })
+  ).json();
+  assert.equal(first.item.version, retry.item.version);
+  assert.ok(first.item.deletedAt);
+  assert.equal(attachment.bytes.byteLength, 0);
+  assert.equal((await call(api.taskGET, { id: task.id })).status, 404);
+  assert.equal((await call(api.fileGET, { id: attachment.id })).status, 404);
+  await signIn(secondId);
+  assert.equal(
+    (await call(api.taskDELETE, { id: task.id, method: "DELETE", body }))
+      .status,
+    404,
+  );
+});
+
+test("stale offline deletions cannot remove a newer task or its attachments", async () => {
+  const { api, signIn, call } = server();
+  await signIn(firstId);
+  const task = api.createTask(firstId, {
+    title: "Keep latest",
+    description: "",
+    dueDate: "",
+  });
+  const attachment = api.addAttachment(firstId, "task", task.id, {
+    name: "keep.txt",
+    mimeType: "text/plain",
+    bytes: new TextEncoder().encode("keep"),
+  });
+  api.updateTask(firstId, task.id, 1, {
+    title: "Newer task",
+    description: "",
+    dueDate: "",
+  });
+  const response = await call(api.taskDELETE, {
+    id: task.id,
+    method: "DELETE",
+    body: { version: "1", mutationId: crypto.randomUUID() },
+  });
+  assert.equal(response.status, 409);
+  assert.equal(api.getTask(firstId, task.id).title, "Newer task");
+  assert.equal((await call(api.fileGET, { id: attachment.id })).status, 200);
+});
+
 function server() {
   const context = vm.createContext({
     require: createRequire(import.meta.url),

@@ -44,11 +44,17 @@ export const noteSchema = z.object({
   content: productText(100000, false, false),
 });
 
-export const taskCreateSchema = taskSchema.extend({
+export const taskStateSchema = taskSchema.extend({
+  completed: z.boolean().optional(),
+});
+export const taskCreateSchema = taskStateSchema.extend({
   mutationId: productIdSchema.optional(),
 });
 export const taskUpdateSchema = taskCreateSchema.extend({
   version: versionSchema,
+});
+export const taskDeleteSchema = identitySchema.omit({ id: true }).extend({
+  mutationId: productIdSchema.optional(),
 });
 
 // IDs/versions are present for editing; creation gets its identity from the server.
@@ -62,6 +68,9 @@ export const deleteItemSchema = identitySchema.extend({
 });
 export const completionSchema = identitySchema.extend({
   completed: z.boolean(),
+});
+export const taskCompletionSchema = completionSchema.omit({ id: true }).extend({
+  mutationId: productIdSchema.optional(),
 });
 export const completedValueSchema = z.enum(["true", "false"], {
   error: "Choose a valid completion state.",

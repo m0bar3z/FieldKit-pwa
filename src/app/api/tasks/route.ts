@@ -1,6 +1,6 @@
 import { apiRoute, readJson } from "@/lib/api/server";
 import { getTasks } from "@/lib/products/queries";
-import { taskCreateSchema, taskSchema } from "@/lib/products/schemas";
+import { taskCreateSchema, taskStateSchema } from "@/lib/products/schemas";
 import { createTask } from "@/lib/products/store";
 import { taskMutation } from "@/lib/products/task-mutations";
 
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       user.id,
       input.mutationId,
       ["create", input],
-      () => createTask(user.id, taskSchema.parse(input)),
+      () => createTask(user.id, taskStateSchema.parse(input)),
     );
     return { success: "Task created.", destination: `/tasks/${item.id}`, item };
   });

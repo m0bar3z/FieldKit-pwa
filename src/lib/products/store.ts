@@ -4,7 +4,7 @@ import type { z } from "zod";
 import { ApiError } from "@/lib/api/errors";
 import { memory } from "@/lib/memory/store";
 import type { ItemMetadata, NoteRecord, TaskRecord } from "@/lib/memory/types";
-import type { noteSchema, taskSchema } from "./schemas";
+import type { noteSchema, taskStateSchema } from "./schemas";
 
 function metadata(userId: string): ItemMetadata {
   const now = Date.now();
@@ -46,8 +46,15 @@ export function getNote(userId: string, id: string) {
 export function getItem(userId: string, kind: "task" | "note", id: string) {
   return kind === "task" ? getTask(userId, id) : getNote(userId, id);
 }
-export function createTask(userId: string, input: z.infer<typeof taskSchema>) {
-  const item: TaskRecord = { ...metadata(userId), ...input, completed: false };
+export function createTask(
+  userId: string,
+  input: z.infer<typeof taskStateSchema>,
+) {
+  const item: TaskRecord = {
+    ...metadata(userId),
+    ...input,
+    completed: input.completed ?? false,
+  };
   memory.tasks.push(item);
   return item;
 }
@@ -60,7 +67,7 @@ export function updateTask(
   userId: string,
   id: string,
   version: number,
-  input: z.infer<typeof taskSchema>,
+  input: z.infer<typeof taskStateSchema>,
 ) {
   const item = getTask(userId, id);
   checkVersion(item, version);
