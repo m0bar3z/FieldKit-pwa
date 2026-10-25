@@ -8,11 +8,8 @@ import { useUser } from "@/components/auth/user-provider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
 import { useAppFeedback } from "@/hooks/use-app-feedback";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { ApiRequestError, apiRequest, refreshTasks } from "@/lib/api/client";
-import { setServerErrors } from "@/lib/forms/server-errors";
-import type { FormResponse } from "@/lib/forms/types";
 import { completionSchema } from "@/lib/products/schemas";
+import { setTaskCompletion } from "@/lib/products/task-sync";
 import type { Task } from "@/lib/products/types";
 
 export function TaskCompletion({
@@ -25,8 +22,7 @@ export function TaskCompletion({
   const id = useId();
   const { notify } = useAppFeedback();
   const user = useUser();
-  const online = useOnlineStatus();
-  const unavailable = !online || !!task.syncStatus || !!task.localOnly;
+  const unavailable = !!task.deletionPending;
   const form = useForm<z.infer<typeof completionSchema>>({
     resolver: zodResolver(completionSchema),
     values: {
@@ -42,24 +38,9 @@ export function TaskCompletion({
     if (submitting.current) return;
     submitting.current = true;
     try {
-      const result = await apiRequest<FormResponse>(
-        `/api/tasks/${values.id}/completion`,
-        {
-          method: "PATCH",
-          headers: { "X-FieldKit-User": user.id },
-          body: JSON.stringify({
-            version: values.version,
-            completed: values.completed,
-          }),
-        },
-      );
-      refreshTasks();
+      const result = await setTaskCompletion(user.id, task, values.completed);
       if (result.success) notify(result.success);
-    } catch (error) {
-      if (error instanceof ApiRequestError) {
-        setServerErrors(form.setError, error.result);
-        return;
-      }
+    } catch {
       form.setError("root.server", {
         message: "Unable to update this task. Please try again.",
       });
@@ -89,7 +70,7 @@ export function TaskCompletion({
               disabled={pending || unavailable}
               title={
                 unavailable
-                  ? "Connect and sync this task before changing completion."
+                  ? "Keep this task before changing completion."
                   : undefined
               }
               aria-invalid={fieldState.invalid}
@@ -98,7 +79,6 @@ export function TaskCompletion({
               onCheckedChange={(completed) => {
                 if (pending || unavailable || submitting.current) return;
                 field.onChange(completed);
-                // TODO(PWA): Queue completion changes when offline mutation support is added.
                 void form.handleSubmit(handleSubmit)();
               }}
             />
