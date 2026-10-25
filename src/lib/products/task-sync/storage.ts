@@ -110,9 +110,11 @@ export async function acknowledgeTask(
   id: string,
   userId: string,
   attempt: TaskAttempt,
-  item: TaskRecord,
+  item?: TaskRecord,
 ) {
-  if (item.userId !== userId)
+  if (!item && attempt.action !== IndexedDbAction.Delete)
+    throw new Error("The server did not acknowledge this task.");
+  if (item && item.userId !== userId)
     throw new Error("The task belongs to another account.");
   await modifyFromStore<TaskChange>("tasks", id, (current) => {
     if (
@@ -126,9 +128,9 @@ export async function acknowledgeTask(
     const task = {
       ...value.task,
       ...attempt.payload,
-      id: item.id,
-      version: item.version,
-      completed: item.completed,
+      id: item?.id ?? value.task.id,
+      version: item?.version ?? value.task.version,
+      completed: item?.completed ?? value.task.completed,
     };
     delete task.localOnly;
     delete task.syncStatus;
@@ -138,7 +140,10 @@ export async function acknowledgeTask(
       value: {
         ...value,
         task,
-        action: IndexedDbAction.Update,
+        action:
+          value.action === IndexedDbAction.Delete
+            ? IndexedDbAction.Delete
+            : IndexedDbAction.Update,
         status: newer ? TaskSyncStatus.Pending : TaskSyncStatus.Synced,
         attempt: null,
         attempts: 0,

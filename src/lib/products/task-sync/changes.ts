@@ -7,11 +7,17 @@ export type TaskPayload = {
   title: string;
   description: string;
   dueDate: string;
+  /** Optional for compatibility with task changes saved by earlier versions. */
+  completed?: boolean;
 };
+export type TaskAction =
+  | IndexedDbAction.Create
+  | IndexedDbAction.Update
+  | IndexedDbAction.Delete;
 export type TaskAttempt = {
   mutationId: string;
   taskId: string;
-  action: IndexedDbAction.Create | IndexedDbAction.Update;
+  action: TaskAction;
   revision: number;
   version: number;
   payload: TaskPayload;
@@ -20,7 +26,7 @@ export type TaskChange = {
   kind: "task";
   userId: string;
   task: Task;
-  action: IndexedDbAction.Create | IndexedDbAction.Update;
+  action: TaskAction;
   payload: TaskPayload;
   revision: number;
   status: TaskSyncStatus;
@@ -53,8 +59,16 @@ export function applyTaskChanges(
 ): TasksData {
   const today = calendarDateAt(new Date(), data.timeZone);
   const merged = new Map(data.items.map((task) => [task.id, task]));
+  let pendingDeletions = 0;
   for (const { id, value } of changes) {
     if (value.userId !== data.userId) continue;
+    const deleting = value.action === IndexedDbAction.Delete;
+    if (deleting && value.status !== TaskSyncStatus.Failed) {
+      merged.delete(String(id));
+      merged.delete(value.task.id);
+      if (value.status === TaskSyncStatus.Pending) pendingDeletions++;
+      continue;
+    }
     const current = merged.get(value.task.id);
     const synced = value.status === TaskSyncStatus.Synced;
     if (synced && !current && value.confirmed) continue;
@@ -70,11 +84,14 @@ export function applyTaskChanges(
     if (!synced) {
       task.syncStatus = value.status;
       task.syncError = value.error;
-      task.localOnly = value.action === IndexedDbAction.Create;
+      task.localOnly =
+        value.action === IndexedDbAction.Create || !!value.task.localOnly;
+      task.deletionPending = deleting;
     } else {
       delete task.syncStatus;
       delete task.syncError;
       delete task.localOnly;
+      delete task.deletionPending;
     }
     merged.delete(String(id));
     merged.set(task.id, task);
@@ -87,6 +104,7 @@ export function applyTaskChanges(
     ...data,
     items,
     today,
+    pendingDeletions,
     counts: {
       dueToday: items.filter((task) => task.group === "today").length,
       overdue: items.filter((task) => task.group === "overdue").length,

@@ -23,6 +23,7 @@ export type Task = {
   localOnly?: boolean;
   syncStatus?: TaskSyncStatus;
   syncError?: string;
+  deletionPending?: boolean;
   title: string;
   description: string;
   version: number;
@@ -52,6 +53,7 @@ export type Note = {
 
 export type TasksData = {
   userId: string;
+  pendingDeletions?: number;
   items: Task[];
   today: string;
   timeZone: string;

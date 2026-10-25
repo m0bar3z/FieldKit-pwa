@@ -1,7 +1,7 @@
 import { refreshTasks } from "@/lib/api/client";
 import { IndexedDbAction, TaskSyncStatus } from "@/lib/indexed-db/enums";
 import { modifyFromStore } from "@/lib/indexed-db/indexed-db";
-import { taskSchema } from "../schemas";
+import { completionSchema, identitySchema, taskSchema } from "../schemas";
 import type { Task } from "../types";
 import {
   requestTaskBackgroundSync,
@@ -23,18 +23,81 @@ export async function saveTask(
   input: TaskPayload,
   task?: Task,
 ) {
+  await queueTaskChange(userId, { task, payload: taskSchema.parse(input) });
+  return { success: "Task saved on this device.", destination: "/tasks" };
+}
+
+export async function setTaskCompletion(
+  userId: string,
+  task: Task,
+  completed: boolean,
+) {
+  completionSchema.parse({
+    id: task.id,
+    version: String(task.version),
+    completed,
+  });
+  await queueTaskChange(userId, { task, completed });
+  return {
+    success: completed
+      ? "Task completed on this device."
+      : "Task marked incomplete on this device.",
+  };
+}
+
+export async function deleteTask(userId: string, task: Task) {
+  identitySchema.parse({ id: task.id, version: String(task.version) });
+  await queueTaskChange(userId, { task, remove: true });
+  return { success: "Task deleted on this device.", destination: "/tasks" };
+}
+
+async function queueTaskChange(
+  userId: string,
+  change: {
+    task?: Task | undefined;
+    payload?: TaskPayload;
+    completed?: boolean;
+    remove?: boolean;
+  },
+) {
+  const { task } = change;
   if (task && task.userId !== userId)
     throw new Error("This task belongs to another account.");
-  const payload = taskSchema.parse(input);
   const id = task?.localId ?? task?.id ?? crypto.randomUUID();
   await modifyFromStore<TaskChange>("tasks", id, (current) => {
     const previous = current?.value;
     if (previous && previous.userId !== userId)
       throw new Error("This task belongs to another account.");
+    if (previous?.action === IndexedDbAction.Delete) {
+      if (change.remove) return current;
+      throw new Error(
+        "Keep this task before changing it. A deletion is already saved.",
+      );
+    }
+    if (task?.localOnly && !previous)
+      throw new Error("This local task was removed. Reload your tasks.");
+    // No upload could have started without a durable attempt in the same store.
+    if (
+      change.remove &&
+      previous?.action === IndexedDbAction.Create &&
+      !previous.attempt
+    )
+      return undefined;
     const baseline =
       previous && (!task || previous.task.version > task.version)
         ? previous.task
         : task;
+    const pending = previous && previous.status !== TaskSyncStatus.Synced;
+    const payload: TaskPayload = {
+      ...taskSchema.parse(
+        change.payload ?? (pending ? previous.payload : baseline),
+      ),
+      completed:
+        change.completed ??
+        (pending ? previous.payload.completed : baseline?.completed) ??
+        baseline?.completed ??
+        false,
+    };
     const local = baseline ?? {
       id,
       userId,
@@ -55,9 +118,10 @@ export async function saveTask(
         kind: "task",
         userId,
         task: local,
-        action:
-          previous?.action ??
-          (task ? IndexedDbAction.Update : IndexedDbAction.Create),
+        action: change.remove
+          ? IndexedDbAction.Delete
+          : (previous?.action ??
+            (task ? IndexedDbAction.Update : IndexedDbAction.Create)),
         payload,
         revision: (previous?.revision ?? 0) + 1,
         status: failed ? TaskSyncStatus.Failed : TaskSyncStatus.Pending,
@@ -72,7 +136,6 @@ export async function saveTask(
   notifyTaskChanges();
   void requestTaskBackgroundSync();
   void runSync(false, userId);
-  return { success: "Task saved on this device.", destination: "/tasks" };
 }
 
 function notifyTaskChanges() {
@@ -186,7 +249,7 @@ export async function retryTaskChange(task: Task) {
 }
 
 export async function discardTaskChange(task: Task) {
-  if (!navigator.locks && running) await running;
+  if (!navigator.locks && running) await running.catch(() => {});
   await withTaskSyncLock(() =>
     modifyFromStore<TaskChange>("tasks", task.localId ?? task.id, (current) =>
       current?.value.userId === task.userId ? undefined : current,

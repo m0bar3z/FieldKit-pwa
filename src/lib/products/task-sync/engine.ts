@@ -52,13 +52,14 @@ export function processTaskQueue(
         if (!attempt) continue;
         try {
           const create = attempt.action === IndexedDbAction.Create;
+          const deleting = attempt.action === IndexedDbAction.Delete;
           const { item } = await apiRequest<{ item: TaskRecord }>(
             create ? "/api/tasks" : `/api/tasks/${attempt.taskId}`,
             {
-              method: create ? "POST" : "PATCH",
+              method: create ? "POST" : deleting ? "DELETE" : "PATCH",
               headers: { "X-FieldKit-User": user.id },
               body: JSON.stringify({
-                ...attempt.payload,
+                ...(!deleting && attempt.payload),
                 mutationId: attempt.mutationId,
                 ...(!create && { version: String(attempt.version) }),
               }),
@@ -68,7 +69,15 @@ export function processTaskQueue(
           await acknowledgeTask(id, user.id, attempt, item);
           progressed = true;
         } catch (error) {
-          await failTaskAttempt(id, user.id, attempt, error);
+          // Deleting a task that is already absent also satisfies the local deletion.
+          if (
+            attempt.action === IndexedDbAction.Delete &&
+            error instanceof ApiRequestError &&
+            error.status === 404
+          ) {
+            await acknowledgeTask(id, user.id, attempt);
+            progressed = true;
+          } else await failTaskAttempt(id, user.id, attempt, error);
         }
         await onChange();
       }

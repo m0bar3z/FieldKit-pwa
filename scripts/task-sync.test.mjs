@@ -593,3 +593,322 @@ test("a signed-out worker preserves the account's pending task without an upload
     "pending",
   );
 });
+
+test("offline completion persists across reloads and immediately updates counts and groups", async () => {
+  const first = engine();
+  const overdue = { ...original, dueDate: "2000-01-01", group: "overdue" };
+  await first.api.mergeLocalTasks(list([overdue]));
+  await first.api.setTaskCompletion(userId, overdue, true);
+  const reload = engine({ records: first.state.records });
+  const data = await reload.api.loadLocalTasks(userId);
+  assert.equal(data.items[0].completed, true);
+  assert.equal(data.items[0].group, "completed");
+  assert.equal(data.items[0].syncStatus, "pending");
+  assert.equal(data.counts.completedTasks, 1);
+  assert.equal(data.counts.openTasks, 0);
+  assert.equal(data.counts.overdue, 0);
+  assert.equal(first.state.requests.length, 0);
+  reload.state.online = true;
+  await reload.api.syncTaskChanges(true, userId);
+  assert.equal(reload.state.requests[0].body.completed, true);
+  assert.equal(reload.state.requests[0].body.version, "3");
+  assert.equal(
+    (await reload.api.loadLocalTasks(userId)).items[0].syncStatus,
+    undefined,
+  );
+});
+
+test("completion and edits coalesce without losing either change, including repeated toggles", async () => {
+  const { api, state } = engine();
+  await api.setTaskCompletion(userId, original, true);
+  await api.saveTask(userId, payload, original);
+  let task = (await api.loadLocalTasks(userId)).items[0];
+  assert.equal(task.completed, true);
+  assert.equal(task.title, payload.title);
+  await api.setTaskCompletion(userId, task, false);
+  await api.setTaskCompletion(userId, task, true);
+  state.online = true;
+  await api.syncTaskChanges(true, userId);
+  assert.equal(state.requests.length, 1);
+  assert.equal(state.requests[0].body.title, payload.title);
+  assert.equal(state.requests[0].body.completed, true);
+  task = (await api.loadLocalTasks(userId)).items[0];
+  assert.equal(task.completed, true);
+});
+
+test("a local task can be completed before creation and uploads the completed state once", async () => {
+  const { api, state } = engine();
+  await api.saveTask(userId, payload);
+  const task = (await api.loadLocalTasks(userId)).items[0];
+  await api.setTaskCompletion(userId, task, true);
+  state.online = true;
+  await api.syncTaskChanges(true, userId);
+  assert.equal(state.requests.length, 1);
+  assert.equal(state.requests[0].method, "POST");
+  assert.equal(state.requests[0].body.completed, true);
+});
+
+test("completion changed during upload is sent next with the acknowledged version", async () => {
+  let release;
+  const { api, state } = engine({
+    fetch(request) {
+      const response = {
+        item: {
+          ...original,
+          ...request.body,
+          version: Number(request.body.version) + 1,
+        },
+      };
+      if (state.requests.length === 1)
+        return new Promise((resolve) => {
+          release = () => resolve(Response.json(response));
+        });
+      return Response.json(response);
+    },
+  });
+  await api.setTaskCompletion(userId, original, true);
+  state.online = true;
+  const syncing = api.syncTaskChanges(true, userId);
+  await until(() => !!release);
+  const task = (await api.loadLocalTasks(userId)).items[0];
+  await api.setTaskCompletion(userId, task, false);
+  release();
+  await syncing;
+  assert.equal(state.requests.length, 2);
+  assert.equal(state.requests[0].body.completed, true);
+  assert.equal(state.requests[1].body.completed, false);
+  assert.equal(state.requests[1].body.version, "4");
+  assert.equal((await api.loadLocalTasks(userId)).items[0].completed, false);
+});
+
+test("offline deletion hides cached tasks and counts immediately, survives reload, and leaves a tombstone", async () => {
+  const first = engine();
+  await first.api.mergeLocalTasks(list([original]));
+  await first.api.deleteTask(userId, original);
+  const reload = engine({ records: first.state.records });
+  let data = await reload.api.loadLocalTasks(userId);
+  assert.equal(data.items.length, 0);
+  assert.equal(data.counts.openTasks, 0);
+  assert.equal(data.pendingDeletions, 1);
+  reload.state.online = true;
+  await reload.api.syncTaskChanges(true, userId);
+  assert.equal(reload.state.requests[0].method, "DELETE");
+  assert.equal(reload.state.requests[0].body.version, "3");
+  assert.equal(reload.state.requests[0].body.title, undefined);
+  data = await reload.api.mergeLocalTasks(list([original]));
+  assert.equal(data.items.length, 0);
+  assert.equal(data.pendingDeletions, 0);
+});
+
+test("deleting a never-uploaded task cancels creation and sends no network mutation", async () => {
+  const { api, state } = engine();
+  await api.saveTask(userId, payload);
+  const task = (await api.loadLocalTasks(userId)).items[0];
+  await api.deleteTask(userId, task);
+  assert.equal((await api.loadLocalTasks(userId)).items.length, 0);
+  state.online = true;
+  await api.syncTaskChanges(true, userId);
+  assert.equal(state.requests.length, 0);
+  await assert.rejects(api.setTaskCompletion(userId, task, true), /removed/);
+});
+
+test("deletion replaces pending edits and completion before any upload", async () => {
+  const { api, state } = engine();
+  await api.saveTask(userId, payload, original);
+  await api.setTaskCompletion(userId, original, true);
+  await api.deleteTask(userId, original);
+  state.online = true;
+  await api.syncTaskChanges(true, userId);
+  assert.equal(state.requests.length, 1);
+  assert.equal(state.requests[0].method, "DELETE");
+  assert.equal(state.requests[0].body.version, "3");
+});
+
+for (const creation of [true, false]) {
+  test(`deletion during ${creation ? "creation" : "editing"} waits for acknowledgement and uses the resulting ID/version`, async () => {
+    let release;
+    const { api, state } = engine({
+      fetch(request) {
+        const item = {
+          ...original,
+          ...request.body,
+          id: creation ? serverId : original.id,
+          version:
+            request.method === "POST" ? 1 : Number(request.body.version) + 1,
+        };
+        if (state.requests.length === 1)
+          return new Promise((resolve) => {
+            release = () => resolve(Response.json({ item }));
+          });
+        return Response.json({ item });
+      },
+    });
+    await api.saveTask(userId, payload, creation ? undefined : original);
+    state.online = true;
+    const syncing = api.syncTaskChanges(true, userId);
+    await until(() => !!release);
+    await api.deleteTask(userId, (await api.loadLocalTasks(userId)).items[0]);
+    assert.equal((await api.loadLocalTasks(userId)).items.length, 0);
+    release();
+    await syncing;
+    assert.equal(state.requests.length, 2);
+    assert.equal(state.requests[1].method, "DELETE");
+    assert.equal(
+      state.requests[1].url,
+      `/api/tasks/${creation ? serverId : original.id}`,
+    );
+    assert.equal(state.requests[1].body.version, creation ? "1" : "4");
+    assert.equal((await api.loadLocalTasks(userId)).items.length, 0);
+  });
+}
+
+for (const deletion of [true, false]) {
+  test(`a lost ${deletion ? "deletion" : "completion"} response retries its immutable mutation after reload`, async () => {
+    const first = engine({
+      fetch() {
+        throw new TypeError("Response lost");
+      },
+    });
+    if (deletion) await first.api.deleteTask(userId, original);
+    else await first.api.setTaskCompletion(userId, original, true);
+    first.state.online = true;
+    await first.api.syncTaskChanges(true, userId);
+    const reload = engine({ records: first.state.records, online: true });
+    await reload.api.syncTaskChanges(true, userId);
+    assert.deepEqual(
+      reload.state.requests[0].body,
+      first.state.requests[0].body,
+    );
+    assert.equal((await reload.api.loadLocalTasks(userId)).pendingDeletions, 0);
+  });
+}
+
+test("a deletion conflict restores a visible failed task with retry and keep controls", async () => {
+  const { api, state } = engine({
+    fetch() {
+      return Response.json({ error: "Changed" }, { status: 409 });
+    },
+  });
+  await api.mergeLocalTasks(list([original]));
+  await api.deleteTask(userId, original);
+  state.online = true;
+  await api.syncTaskChanges(true, userId);
+  const task = (await api.loadLocalTasks(userId)).items[0];
+  assert.equal(task.deletionPending, true);
+  assert.equal(task.syncStatus, "failed");
+  await assert.rejects(
+    api.saveTask(userId, payload, task),
+    /deletion is already saved/,
+  );
+  await assert.rejects(
+    api.setTaskCompletion(userId, task, true),
+    /deletion is already saved/,
+  );
+  await api.discardTaskChange(task);
+  assert.equal(
+    (await api.loadLocalTasks(userId)).items[0].deletionPending,
+    undefined,
+  );
+});
+
+test("deleting a task that is already gone is acknowledged without restoring a ghost", async () => {
+  const { api, state } = engine({
+    fetch() {
+      return Response.json({ error: "Removed" }, { status: 404 });
+    },
+  });
+  await api.deleteTask(userId, original);
+  state.online = true;
+  await api.syncTaskChanges(true, userId);
+  assert.equal((await api.mergeLocalTasks(list([original]))).items.length, 0);
+  assert.equal(state.records.get(original.id).value.status, "synced");
+});
+
+test("background sync handles completion and deletion and respects account ownership", async () => {
+  const page = engine();
+  const otherTask = { ...original, id: crypto.randomUUID() };
+  await page.api.setTaskCompletion(userId, original, true);
+  await page.api.deleteTask(userId, otherTask);
+  await assert.rejects(
+    page.api.deleteTask("another-user", otherTask),
+    /another account/,
+  );
+  await assert.rejects(
+    page.api.setTaskCompletion("another-user", original, true),
+    /another account/,
+  );
+  const wrongSession = engine({
+    records: page.state.records,
+    online: true,
+    sessionUser: "another-user",
+    runtime: "worker",
+  });
+  await wrongSession.backgroundSync();
+  assert.equal(wrongSession.state.requests.length, 0);
+  const worker = engine({
+    records: page.state.records,
+    online: true,
+    runtime: "worker",
+  });
+  await worker.backgroundSync();
+  assert.equal(worker.state.requests.length, 2);
+  assert.deepEqual(worker.state.requests.map((r) => r.method).sort(), [
+    "DELETE",
+    "PATCH",
+  ]);
+  assert.equal(worker.state.messages.length, 2);
+});
+
+test("deleting a task after an uncertain creation response retries creation before sending deletion", async () => {
+  const first = engine({
+    fetch() {
+      throw new TypeError("Response lost");
+    },
+  });
+  await first.api.saveTask(userId, payload);
+  first.state.online = true;
+  await first.api.syncTaskChanges(true, userId);
+  first.state.online = false;
+  await first.api.deleteTask(
+    userId,
+    (await first.api.loadLocalTasks(userId)).items[0],
+  );
+  const reload = engine({ records: first.state.records, online: true });
+  await reload.api.syncTaskChanges(true, userId);
+  assert.equal(reload.state.requests.length, 2);
+  assert.equal(reload.state.requests[0].method, "POST");
+  assert.equal(
+    reload.state.requests[0].body.mutationId,
+    first.state.requests[0].body.mutationId,
+  );
+  assert.equal(reload.state.requests[1].method, "DELETE");
+  assert.equal(reload.state.requests[1].url, `/api/tasks/${serverId}`);
+  assert.equal((await reload.api.loadLocalTasks(userId)).items.length, 0);
+});
+
+test("completion conflicts retain the local state until the user discards it", async () => {
+  const { api, state } = engine({
+    fetch() {
+      return Response.json({ error: "Changed elsewhere" }, { status: 409 });
+    },
+  });
+  await api.mergeLocalTasks(list([original]));
+  await api.setTaskCompletion(userId, original, true);
+  state.online = true;
+  await api.syncTaskChanges(true, userId);
+  const task = (await api.loadLocalTasks(userId)).items[0];
+  assert.equal(task.completed, true);
+  assert.equal(task.syncStatus, "failed");
+  await api.discardTaskChange(task);
+  assert.equal((await api.loadLocalTasks(userId)).items[0].completed, false);
+});
+
+test("local storage failures never claim completion or deletion succeeded", async () => {
+  const { api, state } = engine({ storageError: true, online: true });
+  await assert.rejects(
+    api.setTaskCompletion(userId, original, true),
+    /Storage unavailable/,
+  );
+  await assert.rejects(api.deleteTask(userId, original), /Storage unavailable/);
+  assert.equal(state.requests.length, 0);
+});
