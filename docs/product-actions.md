@@ -21,7 +21,8 @@ authentication and file downloads. The delay is implemented in
 | `/api/notes/[id]` | GET, PATCH, DELETE | Read, edit, or delete a note |
 
 Product writes accept JSON. A task has `title`, `description`, and `dueDate`; a
-note has `title` and `content`. Edit/delete requests include `version` as a string
+note has `title` and `content`. Task creation/edits also accept an optional boolean
+`completed` so pending text and completion changes can upload together. Edit/delete requests include `version` as a string
 (e.g. `"1"`). Completion accepts a boolean `completed` plus the version string.
 IDs come from the route URL. New records receive UUIDs, timestamps, and version 1;
 changes increment the version. Stale writes return HTTP 409; missing items return
@@ -57,7 +58,7 @@ New offline-created notes are stored with their owner and displayed locally but
 are not synchronized by the note-edit queue.
 Existing unowned local edits and drafts belong to the original demo account.
 
-Task creation and edits use `src/lib/products/task-sync/index.ts`. Saves first
+Task creation, edits, completion, and deletion use `src/lib/products/task-sync/index.ts`. Saves first
 commit to IndexedDB and immediately overlay the task list and dashboard counts.
 The account's last task list is stored separately in the tasks store for reads
 when the API and service-worker cache are unavailable. Pending new tasks can be
@@ -68,7 +69,8 @@ Task synchronization runs after saving, on startup/reconnection, on manual retry
 and through the `fieldkit-task-changes` Background Sync tag where supported.
 Page and worker processing share Web Locks where available. Each upload persists
 an immutable attempt with a UUID `mutationId`; POST/PATCH accept that optional
-field and retain account-scoped receipts in server memory. Repeating the same
+field and retain account-scoped receipts in server memory. DELETE and the completion
+endpoint accept `mutationId` too. Repeating the same
 request returns its original result. Reusing a mutation ID with different input
 returns 409. This prevents duplicates and handles lost responses within one
 demo server's lifetime, including when Web Locks are unavailable.
@@ -77,8 +79,14 @@ Edits made during upload stay pending and use the acknowledged server ID/version
 for the next attempt. Network/server failures retry with exponential backoff
 capped at 60 seconds while open. Authentication/validation/version failures keep
 the local changes and offer retry/discard controls. Conflicts never overwrite
-the server version automatically. Task completion/deletion still require the
-network and are unavailable until pending task changes synchronize. Attachment
+the server version automatically. Completion coalesces with pending edits or creation,
+updates groups/counts/badges locally, and can change again during upload. Deletion
+hides the task locally and keeps a tombstone, including after successful sync,
+so stale API caches cannot restore it. An unattempted local creation is canceled
+without a network mutation; an uncertain/in-flight creation or edit finishes
+first, then deletion uses its acknowledged server ID/version. Already-absent
+tasks (404) satisfy the queued deletion. Conflicting/failed deletions reappear
+with retry and “Keep task” controls. Attachment
 uploads for new tasks wait for a server ID. Unsaved drafts are not persisted.
 
 Note edits request service worker Background Sync where supported. Saving,
