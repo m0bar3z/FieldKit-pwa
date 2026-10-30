@@ -130,6 +130,7 @@ export async function acknowledgeTask(
       ...attempt.payload,
       id: item?.id ?? value.task.id,
       version: item?.version ?? value.task.version,
+      updated: item?.updatedAt ?? value.task.updated ?? null,
       completed: item?.completed ?? value.task.completed,
     };
     delete task.localOnly;

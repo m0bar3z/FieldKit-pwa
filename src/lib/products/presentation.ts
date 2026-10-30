@@ -40,6 +40,19 @@ export function formatNoteUpdated(timestamp: number, timeZone: string): string {
   return `Updated ${formatDueDate(calendarDateAt(new Date(timestamp), timeZone))}`;
 }
 
+export function formatTaskUpdated(
+  timestamp: number | null,
+  timeZone: string,
+): string | null {
+  if (
+    typeof timestamp !== "number" ||
+    !Number.isFinite(timestamp) ||
+    Number.isNaN(new Date(timestamp).getTime())
+  )
+    return null;
+  return `Updated ${new Intl.DateTimeFormat("en-US", { timeZone, dateStyle: "medium", timeStyle: "short" }).format(timestamp)}`;
+}
+
 export function formatReminder(
   timestamp: number | null,
   timeZone: string,

@@ -64,6 +64,7 @@ async function queueTaskChange(
   if (task && task.userId !== userId)
     throw new Error("This task belongs to another account.");
   const id = task?.localId ?? task?.id ?? crypto.randomUUID();
+  const now = Date.now();
   await modifyFromStore<TaskChange>("tasks", id, (current) => {
     const previous = current?.value;
     if (previous && previous.userId !== userId)
@@ -105,6 +106,7 @@ async function queueTaskChange(
       localOnly: true,
       ...payload,
       version: 1,
+      updated: now,
       completed: false,
       group: "unscheduled" as const,
       reminderAt: null,
@@ -113,7 +115,7 @@ async function queueTaskChange(
     const failed = previous?.status === TaskSyncStatus.Failed;
     return {
       id,
-      createdAt: current?.createdAt ?? Date.now(),
+      createdAt: current?.createdAt ?? now,
       value: {
         kind: "task",
         userId,
@@ -130,6 +132,7 @@ async function queueTaskChange(
         nextAttemptAt: 0,
         error: failed ? previous.error : "",
         confirmed: false,
+        updatedAt: now,
       },
     };
   });

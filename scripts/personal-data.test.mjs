@@ -142,6 +142,29 @@ test("task APIs reject invalid mutation IDs", async () => {
   assert.equal(result.status, 400);
 });
 
+test("task list timestamps reflect server creation, edits, and completion", async () => {
+  const { api, signIn, call } = server();
+  await signIn(firstId);
+  const created = api.createTask(firstId, {
+    title: "Timestamped",
+    description: "First line\nSecond line",
+    dueDate: "",
+  });
+  let tasks = await (await call(api.tasksGET)).json();
+  assert.equal(tasks.items[0].updated, created.updatedAt);
+  assert.equal(tasks.items[0].description, "First line\nSecond line");
+  const edited = api.updateTask(firstId, created.id, 1, {
+    title: "Edited",
+    description: "Changed",
+    dueDate: "",
+  });
+  tasks = await (await call(api.tasksGET)).json();
+  assert.equal(tasks.items[0].updated, edited.updatedAt);
+  const completed = api.setTaskCompleted(firstId, created.id, 2, true);
+  tasks = await (await call(api.tasksGET)).json();
+  assert.equal(tasks.items[0].updated, completed.updatedAt);
+});
+
 test("task completion retries replay the acknowledged version without toggling twice", async () => {
   const { api, signIn, call } = server();
   await signIn(firstId);

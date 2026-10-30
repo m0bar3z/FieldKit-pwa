@@ -23,7 +23,8 @@ const bundle = await build({
   stdin: {
     contents: `export * from './src/lib/products/task-sync';
     export * from './src/lib/products/task-sync/storage';
-    export { applyTaskChanges } from './src/lib/products/task-sync/changes';`,
+    export { applyTaskChanges } from './src/lib/products/task-sync/changes';
+    export { formatTaskUpdated } from './src/lib/products/presentation';`,
     resolveDir: process.cwd(),
     loader: "ts",
   },
@@ -68,6 +69,7 @@ const original = {
   id: "ca27f27a-e24d-4d04-b177-795e7d3c2921",
   userId,
   version: 3,
+  updated: 100,
   title: "Original",
   description: "Description",
   dueDate: "",
@@ -151,7 +153,11 @@ function engine({
     URL,
     URLSearchParams,
     Intl,
-    Date,
+    Date: class extends Date {
+      static now() {
+        return state.now;
+      }
+    },
     storage,
     navigator: {
       ...(locks ? { locks } : {}),
@@ -911,4 +917,126 @@ test("local storage failures never claim completion or deletion succeeded", asyn
   );
   await assert.rejects(api.deleteTask(userId, original), /Storage unavailable/);
   assert.equal(state.requests.length, 0);
+});
+
+test("task update timestamps survive offline reloads, advance on edits/completion, and use the server acknowledgement", async () => {
+  const first = engine();
+  first.state.now = 1000;
+  await first.api.saveTask(userId, payload);
+  let task = (await first.api.loadLocalTasks(userId)).items[0];
+  assert.equal(task.updated, 1000);
+  const reloaded = engine({ records: first.state.records });
+  assert.equal(
+    (await reloaded.api.loadLocalTasks(userId)).items[0].updated,
+    1000,
+  );
+  reloaded.state.now = 2000;
+  await reloaded.api.saveTask(
+    userId,
+    { ...payload, title: "Later edit" },
+    task,
+  );
+  task = (await reloaded.api.loadLocalTasks(userId)).items[0];
+  assert.equal(task.updated, 2000);
+  reloaded.state.now = 3000;
+  await reloaded.api.setTaskCompletion(userId, task, true);
+  assert.equal(
+    (await reloaded.api.loadLocalTasks(userId)).items[0].updated,
+    3000,
+  );
+  reloaded.state.now = 4000;
+  reloaded.state.online = true;
+  await reloaded.api.syncTaskChanges(true, userId);
+  assert.equal(
+    (await reloaded.api.loadLocalTasks(userId)).items[0].updated,
+    4000,
+  );
+});
+
+test("failed uploads and retries do not change when a task was last edited", async () => {
+  const { api, state } = engine({
+    fetch() {
+      throw new TypeError("Offline");
+    },
+  });
+  state.now = 1000;
+  await api.saveTask(userId, payload, original);
+  state.now = 2000;
+  state.online = true;
+  await api.syncTaskChanges(true, userId);
+  assert.equal((await api.loadLocalTasks(userId)).items[0].updated, 1000);
+  state.now = 3000;
+  await api.syncTaskChanges(true, userId);
+  assert.equal((await api.loadLocalTasks(userId)).items[0].updated, 1000);
+});
+
+test("acknowledging an older upload preserves the timestamp of an edit made during that upload", async () => {
+  const releases = [];
+  const { api, state } = engine({
+    fetch(request) {
+      return new Promise((resolve) =>
+        releases.push(() =>
+          resolve(
+            Response.json({
+              item: {
+                ...original,
+                ...request.body,
+                version: Number(request.body.version) + 1,
+                updatedAt: state.now,
+              },
+            }),
+          ),
+        ),
+      );
+    },
+  });
+  state.now = 1000;
+  await api.saveTask(userId, payload, original);
+  state.online = true;
+  const syncing = api.syncTaskChanges(true, userId);
+  await until(() => releases.length === 1);
+  state.now = 2000;
+  await api.saveTask(
+    userId,
+    { ...payload, title: "Newer edit" },
+    (await api.loadLocalTasks(userId)).items[0],
+  );
+  state.now = 1500;
+  releases[0]();
+  await until(() => releases.length === 2);
+  const pending = (await api.loadLocalTasks(userId)).items[0];
+  assert.equal(pending.updated, 2000);
+  assert.equal(pending.title, "Newer edit");
+  state.now = 3000;
+  releases[1]();
+  await syncing;
+  assert.equal((await api.loadLocalTasks(userId)).items[0].updated, 3000);
+});
+
+test("legacy task caches have an unknown update time until a real local save supplies one", async () => {
+  const { api, state } = engine();
+  const legacy = { ...original };
+  delete legacy.updated;
+  await api.mergeLocalTasks(list([legacy]));
+  let task = (await api.loadLocalTasks(userId)).items[0];
+  assert.equal(task.updated, null);
+  state.now = 2000;
+  await api.saveTask(userId, payload, task);
+  task = (await api.loadLocalTasks(userId)).items[0];
+  assert.equal(task.updated, 2000);
+});
+
+test("task update labels use the account's time zone and handle missing legacy timestamps", () => {
+  const { api } = engine();
+  const instant = Date.parse("2026-10-29T23:30:00Z");
+  assert.equal(
+    api.formatTaskUpdated(instant, "UTC"),
+    "Updated Oct 29, 2026, 11:30 PM",
+  );
+  assert.equal(
+    api.formatTaskUpdated(instant, "Asia/Tehran"),
+    "Updated Oct 30, 2026, 3:00 AM",
+  );
+  assert.equal(api.formatTaskUpdated(null, "UTC"), null);
+  assert.equal(api.formatTaskUpdated(undefined, "UTC"), null);
 });

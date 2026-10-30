@@ -13,6 +13,7 @@ import { DeleteDialog } from "../editors/delete-dialog";
 import { EditItemDialog } from "../editors/edit-item-dialog";
 import { TaskCompletion } from "./task-completion";
 import { TaskSyncStatus } from "./task-sync-status";
+import { TaskUpdated } from "./task-updated";
 
 export function TaskList({
   tasks,
@@ -66,6 +67,7 @@ export function TaskList({
                     </span>
                   )}
                 </span>
+                <TaskUpdated timestamp={task.updated} timeZone={timeZone} />
               </Link>
               {!task.deletionPending && (
                 <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row">

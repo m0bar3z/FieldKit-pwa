@@ -28,6 +28,8 @@ export type Task = {
   description: string;
   version: number;
   completed: boolean;
+  /** Unix milliseconds; null for cached tasks saved before timestamps were exposed. */
+  updated: number | null;
   dueDate: string;
   group: TaskGroup;
   /** Unix timestamp in milliseconds, or null when no reminder is set. */

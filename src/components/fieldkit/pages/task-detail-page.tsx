@@ -9,6 +9,7 @@ import { EditItemDialog } from "@/components/fieldkit/editors/edit-item-dialog";
 import { PageHeading } from "@/components/fieldkit/layout/page-heading";
 import { TaskCompletion } from "@/components/fieldkit/tasks/task-completion";
 import { TaskSyncStatus } from "@/components/fieldkit/tasks/task-sync-status";
+import { TaskUpdated } from "@/components/fieldkit/tasks/task-updated";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -52,6 +53,7 @@ export function TaskDetailPage({ id }: { id: string }) {
         back={{ href: "/tasks", label: "All tasks" }}
         actions={!task.deletionPending && <EditItemDialog task={task} />}
       />
+      <TaskUpdated timestamp={task.updated} timeZone={data.timeZone} />
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-6">
           <Card>

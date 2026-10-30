@@ -35,6 +35,8 @@ export type TaskChange = {
   nextAttemptAt: number;
   error: string;
   confirmed: boolean;
+  /** Time of the latest local change, preserved across retries and older acknowledgements. */
+  updatedAt?: number;
 };
 
 export function isTaskChange(
@@ -74,11 +76,17 @@ export function applyTaskChanges(
     if (synced && !current && value.confirmed) continue;
     const task: Task =
       synced && current && current.version >= value.task.version
-        ? { ...current }
+        ? { ...current, updated: current.updated ?? value.task.updated ?? null }
         : {
             ...(current ?? value.task),
             ...value.payload,
             version: value.task.version,
+            updated:
+              (synced
+                ? value.task.updated
+                : (value.updatedAt ?? value.task.updated)) ??
+              current?.updated ??
+              null,
           };
     if (value.task.localId) task.localId = String(id);
     if (!synced) {
@@ -98,6 +106,7 @@ export function applyTaskChanges(
   }
   const items = [...merged.values()].map((task) => ({
     ...task,
+    updated: task.updated ?? null,
     group: taskGroup(task, today),
   }));
   return {

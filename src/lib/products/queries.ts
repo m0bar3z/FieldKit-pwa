@@ -50,6 +50,7 @@ export function getTasks(userId: string, zone?: string): TasksData {
     version: item.version,
     title: item.title,
     description: item.description,
+    updated: item.updatedAt,
     completed: item.completed,
     dueDate: item.dueDate,
     group: taskGroup(item, today),
