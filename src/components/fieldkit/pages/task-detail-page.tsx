@@ -8,6 +8,7 @@ import { DeleteDialog } from "@/components/fieldkit/editors/delete-dialog";
 import { EditItemDialog } from "@/components/fieldkit/editors/edit-item-dialog";
 import { PageHeading } from "@/components/fieldkit/layout/page-heading";
 import { TaskCompletion } from "@/components/fieldkit/tasks/task-completion";
+import { TaskDescription } from "@/components/fieldkit/tasks/task-description";
 import { TaskSyncStatus } from "@/components/fieldkit/tasks/task-sync-status";
 import { TaskUpdated } from "@/components/fieldkit/tasks/task-updated";
 import { Badge } from "@/components/ui/badge";
@@ -64,7 +65,7 @@ export function TaskDetailPage({ id }: { id: string }) {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
-              <p className="text-sm leading-7">{task.description}</p>
+              <TaskDescription description={task.description} />
               <Separator />
               <TaskCompletion task={task} label />
             </CardContent>
