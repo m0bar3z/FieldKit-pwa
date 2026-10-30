@@ -35,6 +35,8 @@ credentials are defined in `src/lib/auth/demo-account.ts`.
 - Create, edit, complete, and delete tasks.
 - Create, edit, search, and delete notes.
 - Search/filter tasks and show dashboard counts and due dates in the local time zone.
+- Preview new offline tasks without loading a detail page, show last-updated times,
+  and preserve line breaks and long text in task descriptions.
 - Upload, download, and remove small attachments.
 - Demo login/logout with a signed HttpOnly session cookie.
 - Account-owned tasks, notes, attachments, offline edits, and cached API data.

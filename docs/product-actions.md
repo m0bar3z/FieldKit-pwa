@@ -63,7 +63,20 @@ commit to IndexedDB and immediately overlay the task list and dashboard counts.
 The account's last task list is stored separately in the tasks store for reads
 when the API and service-worker cache are unavailable. Pending new tasks can be
 edited from the task list before upload. Temporary IDs become server IDs after
-creation, with the old ID retained as a detail-page alias.
+creation, with the old ID retained as a detail-page alias. Selecting a task that
+has not uploaded opens a local preview dialog without a route request. The
+preview survives reconnecting and receiving a server ID; synced task titles open
+their detail pages normally. Task previews and detail pages preserve description
+line breaks and wrap long text.
+The PWA provider's automatic reconnect reload is disabled; the app's existing
+online listeners refresh data and synchronize queues while preserving open dialogs.
+
+Task lists, previews, and detail pages show last-updated date/time in the account's
+time zone. List responses expose the server's `updatedAt` as `Task.updated`.
+Local saves persist their own change time, including completion changes; retries
+keep that time. An acknowledgement updates the server timestamp while retaining
+the time of any newer pending edit. Older cached tasks without a known timestamp
+omit the label until a local save or a fresh server response supplies one.
 
 Task synchronization runs after saving, on startup/reconnection, on manual retry,
 and through the `fieldkit-task-changes` Background Sync tag where supported.
