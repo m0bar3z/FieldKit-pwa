@@ -1,4 +1,6 @@
+"use client";
 import { ArrowRightIcon, BookOpenIcon } from "lucide-react";
+import { useState } from "react";
 import { AppLink as Link } from "@/components/fieldkit/navigation/app-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,14 +24,19 @@ import {
 import { NoteSyncStatus } from "@/lib/indexed-db/enums";
 import { formatNoteUpdated } from "@/lib/products/presentation";
 import type { Note } from "@/lib/products/types";
+import { DeleteDialog } from "../editors/delete-dialog";
+import { EditItemDialog } from "../editors/edit-item-dialog";
+import { NoteSyncStatus as NoteSyncFeedback } from "./note-sync-status";
 
 export function NoteCard({ note, timeZone }: { note: Note; timeZone: string }) {
-  const isLocal = note.localId !== undefined;
+  const [open, setOpen] = useState(false);
+  const isLocal = !!note.localOnly;
+  const preview = isLocal || open;
   const card = (
     <Card className="h-full">
       <CardHeader>
         <CardTitle>
-          {isLocal ? (
+          {preview ? (
             <DialogTrigger className="cursor-pointer text-left hover:underline underline-offset-4">
               {note.title}
             </DialogTrigger>
@@ -57,11 +64,16 @@ export function NoteCard({ note, timeZone }: { note: Note; timeZone: string }) {
           {note.excerpt}
         </p>
       </CardContent>
-      <CardFooter className="mt-auto justify-between gap-2">
+      {note.syncStatus === NoteSyncStatus.Failed && (
+        <CardContent>
+          <NoteSyncFeedback note={note} />
+        </CardContent>
+      )}
+      <CardFooter className="mt-auto flex-wrap justify-between gap-2">
         <span className="text-xs text-muted-foreground">
           {formatNoteUpdated(note.updated, timeZone)}
         </span>
-        {isLocal ? (
+        {preview ? (
           <DialogTrigger
             aria-label={`Read ${note.title}`}
             render={<Button variant="ghost" className="min-h-11" />}
@@ -79,20 +91,33 @@ export function NoteCard({ note, timeZone }: { note: Note; timeZone: string }) {
             <ArrowRightIcon className="size-4" />
           </Link>
         )}
+        {!note.deletionPending && (
+          <div className="flex flex-wrap gap-2">
+            <EditItemDialog note={note} />
+            <DeleteDialog
+              kind="note"
+              note={note}
+              title={note.title}
+              id={note.id}
+              version={note.version}
+              redirect={false}
+            />
+          </div>
+        )}
       </CardFooter>
     </Card>
   );
 
-  if (!isLocal) return card;
-
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       {card}
       <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="break-words">{note.title}</DialogTitle>
           <DialogDescription>
-            Saved on this device. This note hasn’t been synced yet.
+            {isLocal
+              ? "Saved on this device. This note hasn’t been synced yet."
+              : "Your note details."}
           </DialogDescription>
         </DialogHeader>
         <p className="text-xs text-muted-foreground">

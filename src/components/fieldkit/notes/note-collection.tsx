@@ -27,7 +27,11 @@ export function NoteCollection({
       {filtered.length ? (
         <div className="grid gap-5 md:grid-cols-2">
           {filtered.map((note) => (
-            <NoteCard key={note.id} note={note} timeZone={timeZone} />
+            <NoteCard
+              key={note.localId ?? note.id}
+              note={note}
+              timeZone={timeZone}
+            />
           ))}
         </div>
       ) : (

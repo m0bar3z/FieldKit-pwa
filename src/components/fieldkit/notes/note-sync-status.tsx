@@ -15,8 +15,9 @@ export function NoteSyncStatus({ note }: { note: Note }) {
     setBusy(true);
     setError("");
     try {
-      if (action === "retry") await retryNoteEdit(note.id, note.userId);
-      else await discardNoteEdit(note.id, note.userId);
+      if (action === "retry")
+        await retryNoteEdit(note.localId ?? note.id, note.userId);
+      else await discardNoteEdit(note.localId ?? note.id, note.userId);
     } catch (error) {
       setError(
         error instanceof Error
@@ -39,7 +40,11 @@ export function NoteSyncStatus({ note }: { note: Note }) {
 
   return (
     <Alert variant="destructive">
-      <AlertTitle>This note could not be synced</AlertTitle>
+      <AlertTitle>
+        {note.deletionPending
+          ? "This note could not be deleted"
+          : "This note could not be synced"}
+      </AlertTitle>
       <AlertDescription>
         <p>{note.syncError}</p>
         <p>
@@ -60,7 +65,11 @@ export function NoteSyncStatus({ note }: { note: Note }) {
             disabled={busy}
             onClick={() => void handleAction("discard")}
           >
-            Discard local edit
+            {note.deletionPending
+              ? "Keep note"
+              : note.localOnly
+                ? "Discard local note"
+                : "Discard local edit"}
           </Button>
         </div>
       </AlertDescription>

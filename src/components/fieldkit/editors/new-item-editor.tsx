@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -22,13 +21,10 @@ import {
 } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { useAppFeedback } from "@/hooks/use-app-feedback";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { ApiRequestError, apiRequest, refreshItems } from "@/lib/api/client";
+import { ApiRequestError } from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
-import type { FormResponse } from "@/lib/forms/types";
-import { IndexedDbAction, IndexedDbRecordType } from "@/lib/indexed-db/enums";
-import { addToStore } from "@/lib/indexed-db/indexed-db";
 import { itemFormValues } from "@/lib/products/form-values";
+import { saveNote } from "@/lib/products/product-sync/writes";
 import { type ItemFormValues, itemFormSchema } from "@/lib/products/schemas";
 import { saveTask } from "@/lib/products/task-sync";
 import { ProductForm } from "../forms/product-form";
@@ -47,8 +43,6 @@ export function NewItemEditor({ kind }: { kind: "task" | "note" }) {
   const router = useRouter();
   const [navigating, setNavigating] = useState(false);
 
-  const isOnline = useOnlineStatus();
-
   async function handleSubmit(values: ItemFormValues) {
     if (submitting.current || navigating) return;
     submitting.current = true;
@@ -57,43 +51,15 @@ export function NewItemEditor({ kind }: { kind: "task" | "note" }) {
         const result = await saveTask(user.id, values);
         notify(result.success);
         setNavigating(true);
-        router.push("/tasks");
+        if (navigator.onLine) router.push("/tasks");
+        else window.location.assign("/tasks");
         return;
       }
-      const stringifiedValues = JSON.stringify(values);
-
-      if (isOnline) {
-        const result = await apiRequest<FormResponse>(
-          `/api/${kind === "task" ? "tasks" : "notes"}`,
-          {
-            method: "POST",
-            body: stringifiedValues,
-            headers: { "X-FieldKit-User": user.id },
-          },
-        );
-
-        if (!result.destination) refreshItems(kind);
-
-        if (result.success) notify(result.success);
-
-        if (result.destination) {
-          setNavigating(true);
-          router.push(result.destination as Route);
-        }
-      } else {
-        await addToStore("notes", {
-          userId: user.id,
-          payload: values,
-          kind,
-          action: IndexedDbAction.Create,
-          recordType: IndexedDbRecordType.PendingChange,
-        });
-
-        setNavigating(true);
-        router.push("/notes");
-
-        notify("Completed!");
-      }
+      const result = await saveNote(user.id, values);
+      notify(result.success);
+      setNavigating(true);
+      if (navigator.onLine) router.push("/notes");
+      else window.location.assign("/notes");
     } catch (error) {
       if (error instanceof ApiRequestError) {
         setServerErrors(form.setError, error.result);

@@ -1,7 +1,8 @@
 "use client";
 
 import { BookOpenIcon } from "lucide-react";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Attachments } from "@/components/fieldkit/attachments/attachments";
 import { DeleteDialog } from "@/components/fieldkit/editors/delete-dialog";
 import { EditItemDialog } from "@/components/fieldkit/editors/edit-item-dialog";
@@ -18,14 +19,29 @@ import { Separator } from "@/components/ui/separator";
 import { useNotes } from "@/hooks/use-notes";
 import { formatNoteUpdated } from "@/lib/products/presentation";
 import { DataState } from "../feedback/data-state";
+import { LinkButton } from "../navigation/link-button";
 import { NoteSyncStatus } from "../notes/note-sync-status";
 
 export function NoteDetailPage({ id }: { id: string }) {
   const { data, error, retry } = useNotes();
+  const router = useRouter();
+  const [deleted, setDeleted] = useState(false);
+  const note = data?.items.find(
+    (item) => item.id === id || item.localId === id || item.legacyId === id,
+  );
+  useEffect(() => {
+    if (note && note.id !== id && !note.localOnly)
+      router.replace(`/notes/${note.id}`);
+  }, [note, id, router]);
+  if (deleted)
+    return (
+      <div className="flex flex-col items-start gap-4">
+        <output>Note deleted on this device.</output>
+        <LinkButton href="/notes">Back to notes</LinkButton>
+      </div>
+    );
 
   if (error || !data) return <DataState error={error} retry={retry} />;
-
-  const note = data.items.find((item) => item.id === id);
 
   if (!note) notFound();
   return (
@@ -36,7 +52,7 @@ export function NoteDetailPage({ id }: { id: string }) {
         title={note.title}
         description={formatNoteUpdated(note.updated, data.timeZone)}
         back={{ href: "/notes", label: "All notes" }}
-        actions={<EditItemDialog note={note} />}
+        actions={!note.deletionPending && <EditItemDialog note={note} />}
       />
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-6">
@@ -54,7 +70,17 @@ export function NoteDetailPage({ id }: { id: string }) {
               </p>
             </CardContent>
           </Card>
-          <Attachments items={note.attachments} kind="note" parentId={id} />
+          {note.localOnly ? (
+            <p className="text-sm text-muted-foreground">
+              Sync this note before adding attachments.
+            </p>
+          ) : (
+            <Attachments
+              items={note.attachments}
+              kind="note"
+              parentId={note.id}
+            />
+          )}
         </div>
         <Card>
           <CardHeader>
@@ -64,12 +90,16 @@ export function NoteDetailPage({ id }: { id: string }) {
           <CardContent className="flex flex-col gap-5">
             <Badge variant="outline">Plain-text note</Badge>
             <Separator />
-            <DeleteDialog
-              kind="note"
-              title={note.title}
-              id={id}
-              version={note.version}
-            />
+            {!note.deletionPending && (
+              <DeleteDialog
+                kind="note"
+                note={note}
+                onDeleted={() => setDeleted(true)}
+                title={note.title}
+                id={note.id}
+                version={note.version}
+              />
+            )}
           </CardContent>
         </Card>
       </div>

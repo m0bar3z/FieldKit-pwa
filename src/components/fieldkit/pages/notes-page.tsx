@@ -27,6 +27,13 @@ export function NotesPage() {
           </LinkButton>
         }
       />
+      {!!data.pendingDeletions && (
+        <output className="text-sm text-muted-foreground">
+          {data.pendingDeletions}{" "}
+          {data.pendingDeletions === 1 ? "deletion saved" : "deletions saved"}{" "}
+          on this device. Waiting to sync.
+        </output>
+      )}
       <NoteCollection notes={notes} timeZone={data.timeZone} />
     </>
   );

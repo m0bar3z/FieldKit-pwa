@@ -20,12 +20,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useAppFeedback } from "@/hooks/use-app-feedback";
-import { ApiRequestError, apiRequest, refreshItems } from "@/lib/api/client";
+import { ApiRequestError } from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
-import type { FormResponse } from "@/lib/forms/types";
+import { deleteNote } from "@/lib/products/product-sync/writes";
 import { deleteItemSchema } from "@/lib/products/schemas";
 import { deleteTask } from "@/lib/products/task-sync";
-import type { Task } from "@/lib/products/types";
+import type { Note, Task } from "@/lib/products/types";
 import { ProductForm } from "../forms/product-form";
 import { SaveButton } from "../forms/save-button";
 
@@ -35,6 +35,7 @@ export function DeleteDialog({
   id,
   version,
   task,
+  note,
   redirect = true,
   onDeleted,
 }: {
@@ -43,6 +44,7 @@ export function DeleteDialog({
   id: string;
   version: number;
   task?: Task;
+  note?: Note;
   redirect?: boolean;
   onDeleted?: () => void;
 }) {
@@ -57,7 +59,7 @@ export function DeleteDialog({
   const router = useRouter();
   const [navigating, setNavigating] = useState(false);
 
-  async function handleSubmit(values: z.infer<typeof deleteItemSchema>) {
+  async function handleSubmit() {
     if (submitting.current || navigating) return;
     submitting.current = true;
     try {
@@ -69,21 +71,20 @@ export function DeleteDialog({
         onDeleted?.();
         if (redirect) {
           setNavigating(true);
-          router.push("/tasks");
+          if (navigator.onLine) router.push("/tasks");
+          else window.location.assign("/tasks");
         }
         return;
       }
-      const result = await apiRequest<FormResponse>(`/api/notes/${values.id}`, {
-        method: "DELETE",
-        headers: { "X-FieldKit-User": user.id },
-        body: JSON.stringify({ version: values.version }),
-      });
-      if (!result.destination) refreshItems(kind);
+      if (!note) throw new Error("Reload your notes and try again.");
+      const result = await deleteNote(user.id, note);
       if (result.success) notify(result.success);
       setOpen(false);
-      if (result.destination) {
+      onDeleted?.();
+      if (redirect) {
         setNavigating(true);
-        router.push(result.destination as Route);
+        if (navigator.onLine) router.push(result.destination as Route);
+        else window.location.assign(result.destination);
       }
     } catch (error) {
       if (error instanceof ApiRequestError) {

@@ -17,7 +17,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useAppFeedback } from "@/hooks/use-app-feedback";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { ApiRequestError, apiRequest, refreshItems } from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
 import type { FormResponse } from "@/lib/forms/types";
@@ -33,7 +32,6 @@ import { ItemFields } from "./item-fields";
 export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
   const kind = task ? "task" : "note";
   const [open, setOpen] = useState(false);
-  const isOnline = useOnlineStatus();
   const { notify } = useAppFeedback();
   const user = useUser();
 
@@ -53,7 +51,7 @@ export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
         const result = await saveTask(user.id, values, task);
         notify(result.success);
         setOpen(false);
-      } else if (values.kind === "note" && note && !isOnline) {
+      } else if (values.kind === "note" && note) {
         const result = await saveItem(note, values);
 
         notify(result.success);
