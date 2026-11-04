@@ -2,8 +2,7 @@
 
 import { createContext, type ReactNode, useContext, useEffect } from "react";
 import type { User } from "@/lib/auth/types";
-import { startNoteSync } from "@/lib/products/note-sync";
-import { startTaskSync } from "@/lib/products/task-sync";
+import { startProductSync } from "@/lib/products/product-sync/runtime";
 import { refreshAppBadge } from "@/lib/pwa/app-badge";
 
 const UserContext = createContext<User | null>(null);
@@ -17,12 +16,7 @@ export function UserProvider({
 }) {
   useEffect(() => {
     void refreshAppBadge(user.id);
-    const stopNotes = startNoteSync(user.id);
-    const stopTasks = startTaskSync(user.id);
-    return () => {
-      stopNotes();
-      stopTasks();
-    };
+    return startProductSync(user.id);
   }, [user.id]);
   useEffect(() => {
     const onSessionChange = (event: StorageEvent) => {

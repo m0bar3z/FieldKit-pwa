@@ -40,8 +40,11 @@ export type Task = {
 export type Note = {
   id: string;
   userId: string;
-  /** IndexedDB identity for a note that has not been saved to the server. */
-  localId?: number;
+  /** Stable device identity retained after the server assigns its ID. */
+  localId?: string;
+  legacyId?: string;
+  localOnly?: boolean;
+  deletionPending?: boolean;
   syncStatus?: NoteSyncStatus;
   syncError?: string;
   title: string;
@@ -69,6 +72,7 @@ export type TasksData = {
 
 export type NotesData = {
   userId: string;
+  pendingDeletions?: number;
   items: Note[];
   timeZone: string;
 };

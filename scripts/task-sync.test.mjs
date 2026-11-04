@@ -12,6 +12,7 @@ const storagePlugin = {
     }));
     plugin.onLoad({ filter: /.*/, namespace: "test" }, () => ({
       contents: `
+      export const initializeDB = async () => {};
       export const getAllFromStore = (name) => storage.read(name);
       export const findFromStore = (name, key) => storage.find(name, key);
       export const modifyFromStore = (...args) => storage.modify(...args);
@@ -212,11 +213,11 @@ function engine({
     state,
     window,
     api: context.taskApi,
-    backgroundSync() {
+    backgroundSync(tag = "fieldkit-task-changes") {
       const event = new Event("sync");
       let promise;
       Object.assign(event, {
-        tag: "fieldkit-task-changes",
+        tag,
         waitUntil(value) {
           promise = value;
         },
@@ -486,7 +487,7 @@ test("the service worker uploads task creations and notifies open pages", async 
   await worker.backgroundSync();
   assert.equal(worker.state.requests.length, 1);
   assert.equal(worker.state.requests[0].method, "POST");
-  assert.deepEqual(worker.state.messages, ["fieldkit-task-changes-synced"]);
+  assert.deepEqual(worker.state.messages, ["fieldkit-products-changed"]);
   assert.equal(
     (await first.api.loadLocalTasks(userId)).items[0].syncStatus,
     undefined,
@@ -506,7 +507,23 @@ test("background sync registration is requested when supported", async () => {
   const { api } = engine({ serviceWorker });
   await api.saveTask(userId, payload);
   await until(() => registrations.length > 0);
-  assert.equal(registrations[0], "fieldkit-task-changes");
+  assert.equal(registrations[0], "fieldkit-products");
+});
+
+test("the current shared background tag processes saved tasks", async () => {
+  const page = engine();
+  await page.api.saveTask(userId, payload);
+  const worker = engine({
+    records: page.state.records,
+    online: true,
+    runtime: "worker",
+  });
+  await worker.backgroundSync("fieldkit-products");
+  assert.equal(worker.state.requests.length, 1);
+  assert.equal(
+    (await page.api.loadLocalTasks(userId)).items[0].syncStatus,
+    undefined,
+  );
 });
 
 test("storage failure never reports a task as saved or sends it to the API", async () => {
@@ -519,6 +536,7 @@ test("page and worker share the upload lock and do not create a task twice", asy
   let held = Promise.resolve();
   const locks = {
     request(_name, action) {
+      if (_name !== "fieldkit-product-sync") return action();
       const result = held.then(action);
       held = result.catch(() => {});
       return result;

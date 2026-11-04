@@ -9,14 +9,10 @@ export enum IndexedDbRecordType {
   SyncedItem = "synced-item",
 }
 
-export enum NoteSyncStatus {
+export enum SyncStatus {
   Pending = "pending",
   Failed = "failed",
   Synced = "synced",
 }
 
-export enum TaskSyncStatus {
-  Pending = "pending",
-  Failed = "failed",
-  Synced = "synced",
-}
+export { SyncStatus as NoteSyncStatus, SyncStatus as TaskSyncStatus };

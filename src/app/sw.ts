@@ -4,10 +4,11 @@
 import { defaultCache } from "@serwist/turbopack/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { ExpirationPlugin, NetworkFirst, NetworkOnly, Serwist } from "serwist";
-import { NOTE_SYNC_TAG } from "@/lib/products/note-sync/background-sync";
-import { syncNoteEditsInBackground } from "@/lib/products/note-sync/worker";
-import { TASK_SYNC_TAG } from "@/lib/products/task-sync/background-sync";
-import { syncTasksInBackground } from "@/lib/products/task-sync/worker";
+import {
+  LEGACY_SYNC_TAGS,
+  PRODUCT_SYNC_TAG,
+} from "@/lib/products/product-sync/background-sync";
+import { syncProductsInBackground } from "@/lib/products/product-sync/worker";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -70,10 +71,7 @@ const serwist = new Serwist({
 serwist.addEventListeners();
 
 self.addEventListener("sync", (event) => {
-  if (event.tag === NOTE_SYNC_TAG) {
-    event.waitUntil(syncNoteEditsInBackground(self.clients));
-  }
-  if (event.tag === TASK_SYNC_TAG) {
-    event.waitUntil(syncTasksInBackground(self.clients));
+  if (event.tag === PRODUCT_SYNC_TAG || LEGACY_SYNC_TAGS.includes(event.tag)) {
+    event.waitUntil(syncProductsInBackground(self.clients));
   }
 });

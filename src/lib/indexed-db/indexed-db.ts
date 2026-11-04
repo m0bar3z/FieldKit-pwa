@@ -1,8 +1,11 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: The upgrade event provides a versionchange transaction. */
+
+import { withProductLock } from "@/lib/products/product-sync/locks";
+import { migrateRecord } from "@/lib/products/product-sync/migration";
 import type { IndexedDbAction } from "./enums";
 
 const DB_NAME = "fieldkit";
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 const NOTES_NAME = "notes";
 const TASKS_NAME = "tasks";
 
@@ -20,9 +23,13 @@ const openDB = (): Promise<IDBDatabase> => {
     let blocked = false;
 
     request.onupgradeneeded = () => {
+      if (blocked) {
+        request.transaction?.abort();
+        return;
+      }
       const db = request.result;
 
-      for (const storeName of [NOTES_NAME, TASKS_NAME]) {
+      for (const storeName of [NOTES_NAME, TASKS_NAME] as const) {
         const store = db.objectStoreNames.contains(storeName)
           ? request.transaction!.objectStore(storeName)
           : db.createObjectStore(storeName, {
@@ -41,6 +48,21 @@ const openDB = (): Promise<IDBDatabase> => {
         if (!store.indexNames.contains("by_recordType")) {
           store.createIndex("by_recordType", "value.recordType");
         }
+        const cursorRequest = store.openCursor();
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+          if (!cursor) return;
+          const original = cursor.value as StoredRecord<unknown>;
+          const migrated = migrateRecord(storeName, original);
+          if (migrated !== original) {
+            if (migrated.id === original.id) cursor.update(migrated);
+            else {
+              store.add(migrated);
+              cursor.delete();
+            }
+          }
+          cursor.continue();
+        };
       }
     };
 
@@ -67,11 +89,24 @@ const openDB = (): Promise<IDBDatabase> => {
   });
 };
 
+let initialization: Promise<void> | undefined;
+export function initializeDB(): Promise<void> {
+  initialization ??= withProductLock(async () => {
+    const db = await openDB();
+    db.close();
+  }).catch((error: unknown) => {
+    initialization = undefined;
+    throw error;
+  });
+  return initialization;
+}
+
 const execute = async <T>(
   name: StoreNames,
   mode: IDBTransactionMode,
   action: (store: IDBObjectStore) => IDBRequest<T>,
 ) => {
+  await initializeDB();
   const db = await openDB();
 
   return new Promise<T>((resolve, reject) => {
@@ -128,6 +163,7 @@ export const modifyFromStore = async <T>(
   key: IDBValidKey,
   change: (current: StoredRecord<T> | undefined) => StoredRecord<T> | undefined,
 ): Promise<StoredRecord<T> | undefined> => {
+  await initializeDB();
   const db = await openDB();
 
   return new Promise((resolve, reject) => {

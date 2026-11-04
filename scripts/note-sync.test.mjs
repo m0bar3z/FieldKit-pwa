@@ -13,6 +13,7 @@ const storagePlugin = {
     }));
     plugin.onLoad({ filter: /.*/, namespace: "test" }, () => ({
       contents: `
+        export const initializeDB = async () => {};
         export const getAllFromStore = () => storage.read();
         export const findFromStore = (...args) => storage.find(...args);
         export const modifyFromStore = (...args) => storage.modify(...args);
@@ -25,7 +26,7 @@ const bundle = await build({
   stdin: {
     contents: `export { saveItem } from './src/lib/products/save-item';
       export * from './src/lib/products/note-sync';
-      export { requestNoteBackgroundSync } from './src/lib/products/note-sync/background-sync';
+      export { requestProductBackgroundSync as requestNoteBackgroundSync } from './src/lib/products/product-sync/background-sync';
       export { applyNoteEdits } from './src/lib/products/note-edits';`,
     resolveDir: process.cwd(),
     loader: "ts",
@@ -111,6 +112,7 @@ function engine({
     console: { ...console, warn: (...args) => state.warnings.push(args) },
     ...(runtime === "page" ? { window } : { self: worker }),
     Event,
+    crypto,
     Headers,
     Response,
     AbortSignal,
@@ -140,6 +142,9 @@ function engine({
       state.timers.delete(id);
     },
     storage: {
+      async find(_store, key) {
+        return structuredClone(records.get(key));
+      },
       async read() {
         return structuredClone([...records.values()]);
       },
@@ -171,6 +176,8 @@ function engine({
             item: {
               ...originalNote,
               ...request.body,
+              id: url.split("/").at(-1),
+              userId: state.userId,
               version: Number(request.body.version) + 1,
               updatedAt: state.now,
             },
@@ -376,7 +383,8 @@ for (const status of [400, 401, 409, 422]) {
     await until(() => edit()?.status === "failed");
     await api.syncPendingChanges(true);
     assert.equal(state.requests.length, 1);
-    assert.equal(edit().error, "Review this change");
+    if (status === 409) assert.match(edit().error, /changed elsewhere/);
+    else assert.equal(edit().error, "Review this change");
     assert.equal(edit().payload.content, "My work");
     await api.discardNoteEdit(originalNote.id);
     assert.equal(state.records.size, 0);
@@ -429,7 +437,7 @@ test("saving offline registers background work, including after worker activatio
   const active = backgroundService();
   activate(await active.container.ready);
   await until(() => active.registrations.length === 1);
-  assert.equal(active.registrations[0], "fieldkit-note-edits");
+  assert.equal(active.registrations[0], "fieldkit-products");
   assert.equal(page.state.requests.length, 0);
 });
 
@@ -502,7 +510,7 @@ test("the service worker uploads persisted edits without page globals and notifi
   assert.equal(worker.state.requests[0].body.version, "1");
   assert.equal(worker.state.requests[0].credentials, "same-origin");
   assert.equal(worker.state.requests[0].method, "PATCH");
-  assert.deepEqual(worker.state.messages, ["fieldkit-note-edits-changed"]);
+  assert.deepEqual(worker.state.messages, ["fieldkit-products-changed"]);
   assert.equal(worker.state.timers.size, 0);
   await worker.backgroundSync();
   assert.equal(worker.state.requests.length, 1);
@@ -652,7 +660,8 @@ for (const status of [401, 409, 422]) {
     await worker.backgroundSync();
     assert.equal(worker.edit().status, "failed");
     assert.equal(worker.edit().payload.content, "My work");
-    assert.equal(worker.edit().error, "Review required");
+    if (status === 409) assert.match(worker.edit().error, /changed elsewhere/);
+    else assert.equal(worker.edit().error, "Review required");
     await worker.backgroundSync();
     assert.equal(worker.state.requests.length, 1);
   });
@@ -701,7 +710,7 @@ test("the worker waits for a page upload under the shared lock without duplicati
   let lockRequests = 0;
   const locks = {
     request(name, action) {
-      assert.equal(name, "fieldkit-note-edits");
+      if (name !== "fieldkit-product-sync") return action();
       lockRequests += 1;
       const task = previous.then(() => action({ name }));
       previous = task.catch(() => {});
