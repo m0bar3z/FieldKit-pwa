@@ -44,26 +44,27 @@ credentials are defined in `src/lib/auth/demo-account.ts`.
 - Web app manifest/icons, Serwist registration/caching and offline fallback,
   online/offline indicators, update prompts, and installation guidance.
 
-Task creation, edits, completion, and deletion are saved in IndexedDB first, displayed immediately with
+Tasks and notes share one synchronization engine. Creation, edits, deletion, and
+task completion are saved in IndexedDB first, displayed immediately with
 pending/failed sync feedback, and synchronized after saving, on startup, and on
-reconnection. New tasks receive a temporary device ID that is replaced by the
+reconnection. New items receive a temporary device ID that is replaced by the
 server ID after upload. Retried requests cannot create duplicate tasks or reapply
 an acknowledged edit within the demo server's lifetime. Version conflicts retain
 local changes for review, with retry/discard controls. Each account's last task
-list is also stored locally for offline reading without a service-worker cache.
+and note lists are also stored locally for offline reading without a service-worker cache.
 
-Edits to existing notes are saved in IndexedDB and synchronized on startup,
-reconnection, and after saving while the app is open. Background Sync also runs
-through the service worker where supported. The installed app badge shows the
-current account's overdue task count where supported. Cached API reads are
-overlaid with local edits. Offline-created notes can be read locally; syncing
-new notes, unsaved drafts, and reminder delivery remain
-future learning tasks.
-Task attachments still require connectivity. Offline completion updates task groups,
-dashboard counts, and the app badge immediately. Deletions hide tasks locally and
-leave a marker so stale caches cannot restore them. Deleting a new task before any
+New offline notes can be read, edited before their first upload, and deleted from
+their cards. They synchronize automatically using the same queue as tasks.
+Background Sync runs through the shared service worker where supported; the app
+also synchronizes while open when Background Sync is unavailable.
+IndexedDB version 6 preserves older offline records, including numeric note IDs
+and uncertain uploads, without clearing local data. Unsaved drafts and reminder
+delivery remain future learning tasks.
+Attachments still require connectivity. Offline task completion updates groups,
+dashboard counts, and the app badge immediately. Deletions hide items locally and
+leave a marker so stale caches cannot restore them. Deleting a new item before any
 upload cancels its creation; deletion during an upload waits for acknowledgement.
-Failed deletions reappear with retry and “Keep task” controls.
+Failed deletions reappear with retry and “Keep task” / “Keep note” controls.
 
 ## Demo backend limitations
 
@@ -110,6 +111,7 @@ src/app/sw.ts                   # Serwist worker configuration
 | `pnpm test:auth` | Login input validation and signed session checks |
 | `pnpm test:note-sync` | Note edit persistence, retry, and conflict checks |
 | `pnpm test:task-sync` | Offline task creation, editing, completion, deletion, retries, and worker sync |
+| `pnpm test:product-sync` | Shared queue, offline notes, migration, cross-kind locking, and account changes |
 | `pnpm test:products` | Personal task/note APIs and account isolation checks |
 | `pnpm test:tooling` | Git workflow checks |
 
