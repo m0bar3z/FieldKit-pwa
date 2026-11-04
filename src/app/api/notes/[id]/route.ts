@@ -1,9 +1,10 @@
 import { apiRoute, readJson } from "@/lib/api/server";
+import { productMutation } from "@/lib/products/product-mutations";
 import {
-  identitySchema,
+  noteDeleteSchema,
   noteSchema,
+  noteUpdateSchema,
   productIdSchema,
-  versionSchema,
 } from "@/lib/products/schemas";
 import { deleteItem, getNote, updateNote } from "@/lib/products/store";
 
@@ -17,12 +18,14 @@ export async function PATCH(request: Request, { params }: Context) {
   return apiRoute(request, async (user) => {
     const id = productIdSchema.parse((await params).id);
     const body = await readJson(request);
-    const input = noteSchema.extend({ version: versionSchema }).parse(body);
-    const item = updateNote(
+    const input = noteUpdateSchema.parse(body);
+    const item = productMutation(
+      "note",
       user.id,
-      id,
-      Number(input.version),
-      noteSchema.parse(input),
+      input.mutationId,
+      ["update", id, input],
+      () =>
+        updateNote(user.id, id, Number(input.version), noteSchema.parse(input)),
     );
     return { success: "Note saved.", item };
   });
@@ -30,10 +33,18 @@ export async function PATCH(request: Request, { params }: Context) {
 export async function DELETE(request: Request, { params }: Context) {
   return apiRoute(request, async (user) => {
     const id = productIdSchema.parse((await params).id);
-    const input = identitySchema
-      .omit({ id: true })
-      .parse(await readJson(request));
-    deleteItem(user.id, "note", id, Number(input.version));
-    return { success: "Note deleted.", destination: "/notes" };
+    const input = noteDeleteSchema.parse(await readJson(request));
+    const item = productMutation(
+      "note",
+      user.id,
+      input.mutationId,
+      ["delete", id, input],
+      () => {
+        const note = getNote(user.id, id);
+        deleteItem(user.id, "note", id, Number(input.version));
+        return note;
+      },
+    );
+    return { success: "Note deleted.", destination: "/notes", item };
   });
 }

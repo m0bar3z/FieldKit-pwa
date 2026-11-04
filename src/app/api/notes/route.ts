@@ -1,6 +1,7 @@
 import { apiRoute, readJson } from "@/lib/api/server";
+import { productMutation } from "@/lib/products/product-mutations";
 import { getNotes } from "@/lib/products/queries";
-import { noteSchema } from "@/lib/products/schemas";
+import { noteCreateSchema, noteSchema } from "@/lib/products/schemas";
 import { createNote } from "@/lib/products/store";
 
 export async function GET(request: Request) {
@@ -13,7 +14,14 @@ export async function GET(request: Request) {
 }
 export async function POST(request: Request) {
   return apiRoute(request, async (user) => {
-    const item = createNote(user.id, noteSchema.parse(await readJson(request)));
+    const input = noteCreateSchema.parse(await readJson(request));
+    const item = productMutation(
+      "note",
+      user.id,
+      input.mutationId,
+      ["create", input],
+      () => createNote(user.id, noteSchema.parse(input)),
+    );
     return { success: "Note created.", destination: `/notes/${item.id}`, item };
   });
 }

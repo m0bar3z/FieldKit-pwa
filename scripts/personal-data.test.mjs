@@ -53,6 +53,130 @@ const bundle = await build({
 const firstId = "fieldkit-demo-user";
 const secondId = "fieldkit-second-demo-user";
 
+test("note creation, editing, and deletion replay immutable mutation receipts", async () => {
+  const { api, signIn, call } = server();
+  await signIn(firstId);
+  const body = {
+    title: "Offline note",
+    content: "First line\n\nSecond line",
+    mutationId: crypto.randomUUID(),
+  };
+  const created = await (
+    await call(api.notesPOST, { method: "POST", body })
+  ).json();
+  const replay = await (
+    await call(api.notesPOST, { method: "POST", body })
+  ).json();
+  assert.equal(replay.item.id, created.item.id);
+  const edit = {
+    title: "Edited",
+    content: "New text",
+    version: "1",
+    mutationId: crypto.randomUUID(),
+  };
+  const updated = await (
+    await call(api.notePATCH, {
+      id: created.item.id,
+      method: "PATCH",
+      body: edit,
+    })
+  ).json();
+  const editedReplay = await (
+    await call(api.notePATCH, {
+      id: created.item.id,
+      method: "PATCH",
+      body: edit,
+    })
+  ).json();
+  assert.equal(editedReplay.item.version, updated.item.version);
+  const deletion = { version: "2", mutationId: crypto.randomUUID() };
+  const deleted = await (
+    await call(api.noteDELETE, {
+      id: created.item.id,
+      method: "DELETE",
+      body: deletion,
+    })
+  ).json();
+  const deleteReplay = await (
+    await call(api.noteDELETE, {
+      id: created.item.id,
+      method: "DELETE",
+      body: deletion,
+    })
+  ).json();
+  assert.equal(deleteReplay.item.version, deleted.item.version);
+  assert.ok(deleted.item.deletedAt);
+  // Retrying creation after deletion still replays its receipt, without recreating the record.
+  await call(api.notesPOST, { method: "POST", body });
+  assert.equal((await (await call(api.notesGET)).json()).items.length, 0);
+});
+
+test("note mutation IDs reject payload changes and are scoped by owner and product kind", async () => {
+  const { api, signIn, call } = server();
+  await signIn(firstId);
+  const mutationId = crypto.randomUUID();
+  const body = { title: "Private note", content: "Text", mutationId };
+  const created = await (
+    await call(api.notesPOST, { method: "POST", body })
+  ).json();
+  assert.equal(
+    (
+      await call(api.notesPOST, {
+        method: "POST",
+        body: { ...body, content: "Different" },
+      })
+    ).status,
+    409,
+  );
+  const task = await (
+    await call(api.tasksPOST, {
+      method: "POST",
+      body: { title: "Task", description: "", dueDate: "", mutationId },
+    })
+  ).json();
+  assert.notEqual(task.item.id, created.item.id);
+  await signIn(secondId);
+  const second = await (
+    await call(api.notesPOST, { method: "POST", body })
+  ).json();
+  assert.equal(second.item.userId, secondId);
+  assert.notEqual(second.item.id, created.item.id);
+  assert.equal(
+    (
+      await call(api.noteDELETE, {
+        id: created.item.id,
+        method: "DELETE",
+        body: { version: "1", mutationId: crypto.randomUUID() },
+      })
+    ).status,
+    404,
+  );
+});
+
+test("stale note deletions retain the newer note and its attachments", async () => {
+  const { api, signIn, call } = server();
+  await signIn(firstId);
+  const note = api.createNote(firstId, { title: "Original", content: "Text" });
+  const attachment = api.addAttachment(firstId, "note", note.id, {
+    name: "keep.txt",
+    mimeType: "text/plain",
+    bytes: new TextEncoder().encode("Keep"),
+  });
+  api.updateNote(firstId, note.id, 1, { title: "Newer", content: "New text" });
+  assert.equal(
+    (
+      await call(api.noteDELETE, {
+        id: note.id,
+        method: "DELETE",
+        body: { version: "1", mutationId: crypto.randomUUID() },
+      })
+    ).status,
+    409,
+  );
+  assert.equal(api.getNote(firstId, note.id).title, "Newer");
+  assert.equal((await call(api.fileGET, { id: attachment.id })).status, 200);
+});
+
 test("task creation retries are idempotent and mutation IDs are scoped to the account", async () => {
   const { api, signIn, call } = server();
   await signIn(firstId);

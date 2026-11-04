@@ -56,6 +56,13 @@ export const taskUpdateSchema = taskCreateSchema.extend({
 export const taskDeleteSchema = identitySchema.omit({ id: true }).extend({
   mutationId: productIdSchema.optional(),
 });
+export const noteCreateSchema = noteSchema.extend({
+  mutationId: productIdSchema.optional(),
+});
+export const noteUpdateSchema = noteCreateSchema.extend({
+  version: versionSchema,
+});
+export const noteDeleteSchema = taskDeleteSchema;
 
 // IDs/versions are present for editing; creation gets its identity from the server.
 const editorIdentity = identitySchema.partial().shape;
