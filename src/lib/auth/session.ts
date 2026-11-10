@@ -28,7 +28,7 @@ function sessionKey() {
   return new TextEncoder().encode(secret);
 }
 
-export async function userFromSession(token?: string) {
+export async function sessionDetails(token?: string) {
   if (!token) return null;
   const key = sessionKey();
   try {
@@ -39,11 +39,25 @@ export async function userFromSession(token?: string) {
       requiredClaims: ["sub", "exp", "iat", "jti"],
     });
     const account = DEMO_ACCOUNTS.find((account) => account.id === payload.sub);
-    return account ? { id: account.id, email: account.email } : null;
+    return account &&
+      typeof payload.jti === "string" &&
+      typeof payload.exp === "number"
+      ? {
+          user: { id: account.id, email: account.email },
+          sessionId: payload.jti,
+          expiresAt: payload.exp * 1000,
+        }
+      : null;
   } catch {
     return null;
   }
 }
+export async function userFromSession(token?: string) {
+  return (await sessionDetails(token))?.user ?? null;
+}
+export const getCurrentSession = cache(async () =>
+  sessionDetails((await cookies()).get(SESSION_COOKIE)?.value),
+);
 
 export async function createSession(userId = DEMO_ACCOUNT.id) {
   return new SignJWT({})

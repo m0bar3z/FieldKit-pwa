@@ -22,7 +22,9 @@
     "test:note-sync": "node --conditions=react-server --import tsx --test scripts/note-sync.test.mjs",
     "test:task-sync": "node --conditions=react-server --import tsx --test scripts/task-sync.test.mjs",
     "test:product-sync": "node --conditions=react-server --import tsx --test scripts/product-sync.test.mjs",
-    "test:products": "node --conditions=react-server --import tsx --test scripts/personal-data.test.mjs"
+    "test:products": "node --conditions=react-server --import tsx --test scripts/personal-data.test.mjs",
+    "test:reminders": "node --conditions=react-server --import tsx --test scripts/task-reminders.test.mjs",
+    "reminders:run": "node scripts/task-reminders-runner.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

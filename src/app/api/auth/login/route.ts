@@ -13,9 +13,11 @@ import { safeReturnPath } from "@/lib/auth/input";
 import { signInSchema } from "@/lib/auth/schemas";
 import {
   createSession,
+  getCurrentSession,
   SESSION_COOKIE,
   sessionCookieOptions,
 } from "@/lib/auth/session";
+import { removeSessionDevices } from "@/lib/push/store";
 
 export async function POST(request: Request) {
   try {
@@ -33,6 +35,8 @@ export async function POST(request: Request) {
     if (!account)
       throw new ApiError("Check your email and password, then try again.", 401);
     const token = await createSession(account.id);
+    const outgoing = await getCurrentSession();
+    if (outgoing) removeSessionDevices(outgoing.sessionId);
     const response = NextResponse.json(
       { success: "Signed in.", destination: safeReturnPath(credentials.next) },
       { headers: privateHeaders },

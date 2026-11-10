@@ -9,6 +9,11 @@ import {
   PRODUCT_SYNC_TAG,
 } from "@/lib/products/product-sync/background-sync";
 import { syncProductsInBackground } from "@/lib/products/product-sync/worker";
+import {
+  displayTaskReminder,
+  openTaskReminder,
+  recordPushAccount,
+} from "@/lib/push/worker";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -74,4 +79,31 @@ self.addEventListener("sync", (event) => {
   if (event.tag === PRODUCT_SYNC_TAG || LEGACY_SYNC_TAGS.includes(event.tag)) {
     event.waitUntil(syncProductsInBackground(self.clients));
   }
+});
+
+self.addEventListener("push", (event) => {
+  let payload: unknown;
+  try {
+    payload = event.data?.json();
+  } catch {
+    return;
+  }
+  event.waitUntil(displayTaskReminder(self, payload));
+});
+self.addEventListener("notificationclick", (event) => {
+  if (!event.notification.tag.startsWith("fieldkit-task:")) return;
+  event.notification.close();
+  event.waitUntil(openTaskReminder(self, event.notification.data));
+});
+self.addEventListener("message", (event) => {
+  const data = event.data;
+  if (
+    data?.type !== "fieldkit-push-account" ||
+    !(data.userId === null || typeof data.userId === "string") ||
+    !event.source ||
+    !("url" in event.source) ||
+    new URL(event.source.url).origin !== self.location.origin
+  )
+    return;
+  event.waitUntil(recordPushAccount(self, data.userId));
 });

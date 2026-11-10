@@ -7,10 +7,12 @@ import {
   privateHeaders,
 } from "@/lib/api/server";
 import {
+  getCurrentSession,
   getCurrentUser,
   SESSION_COOKIE,
   sessionCookieOptions,
 } from "@/lib/auth/session";
+import { removeSessionDevices } from "@/lib/push/store";
 
 export async function GET() {
   await simulateApiDelay();
@@ -24,6 +26,8 @@ export async function DELETE(request: Request) {
   try {
     await simulateApiDelay();
     checkOrigin(request);
+    const session = await getCurrentSession();
+    if (session) removeSessionDevices(session.sessionId);
     const response = NextResponse.json(
       { success: "Signed out." },
       { headers: privateHeaders },
