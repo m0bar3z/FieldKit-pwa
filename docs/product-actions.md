@@ -38,8 +38,9 @@ confirmation or automatic draft storage is implemented.
 
 Due dates remain calendar dates. The browser sends its IANA time zone so the API
 calculates overdue/today status consistently. `TaskClock` refreshes task data
-when the local day or time zone changes. Reminder editing/delivery remains
-a TODO.
+when the local day or time zone changes. Tasks accept an optional absolute
+`reminderAt` timestamp or null. Reminder editing, offline syncing, and opt-in Web
+Push delivery are described in [task-reminders.md](task-reminders.md).
 
 The installed app icon shows the number of overdue, incomplete tasks through
 the Badging API where supported. Task loads update the count, including

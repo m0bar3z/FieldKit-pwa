@@ -58,8 +58,10 @@ their cards. They synchronize automatically using the same queue as tasks.
 Background Sync runs through the shared service worker where supported; the app
 also synchronizes while open when Background Sync is unavailable.
 IndexedDB version 6 preserves older offline records, including numeric note IDs
-and uncertain uploads, without clearing local data. Unsaved drafts and reminder
-delivery remain future learning tasks.
+and uncertain uploads, without clearing local data. Unsaved drafts remain a future
+learning task. Optional task reminder times use the same offline queue. Opt-in
+Web Push notifications require VAPID configuration and the scheduler runner;
+see [Task reminders](docs/task-reminders.md) for setup and demo limitations.
 Attachments still require connectivity. Offline task completion updates groups,
 dashboard counts, and the app badge immediately. Deletions hide items locally and
 leave a marker so stale caches cannot restore them. Deleting a new item before any
@@ -83,6 +85,7 @@ The previous cloud backend remains available in the main branch history.
 - [Demo authentication](docs/authentication.md)
 - [Product API](docs/product-actions.md)
 - [Attachments](docs/attachments.md)
+- [Task reminders and push configuration](docs/task-reminders.md)
 
 ```text
 src/app/api/auth/                # Login and session/logout handlers
