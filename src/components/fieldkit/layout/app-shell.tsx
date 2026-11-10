@@ -17,6 +17,7 @@ import { LinkButton } from "../navigation/link-button";
 import { MobileNavigation } from "../navigation/mobile-navigation";
 import { InstallationGuide } from "../pwa/installation-guide";
 import { ServiceWorkerUpdatePrompt } from "../pwa/service-worker-update-prompt";
+import { TaskReminderControls } from "../pwa/task-reminder-controls";
 import { AppBrand } from "./app-brand";
 import { TaskClock } from "./task-clock";
 
@@ -106,6 +107,7 @@ export function AppShell({
           </p>
           <div className="flex items-center gap-3">
             <InstallationGuide />
+            <TaskReminderControls />
             {accountActions}
           </div>
         </header>

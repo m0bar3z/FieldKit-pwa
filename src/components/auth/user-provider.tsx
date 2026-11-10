@@ -3,6 +3,7 @@
 import { createContext, type ReactNode, useContext, useEffect } from "react";
 import type { User } from "@/lib/auth/types";
 import { startProductSync } from "@/lib/products/product-sync/runtime";
+import { announcePushAccount, reconcileTaskPush } from "@/lib/push/client";
 import { refreshAppBadge } from "@/lib/pwa/app-badge";
 
 const UserContext = createContext<User | null>(null);
@@ -15,6 +16,8 @@ export function UserProvider({
   children: ReactNode;
 }) {
   useEffect(() => {
+    announcePushAccount(user.id);
+    void reconcileTaskPush(user.id);
     void refreshAppBadge(user.id);
     return startProductSync(user.id);
   }, [user.id]);

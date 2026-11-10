@@ -10,6 +10,7 @@ import { ApiRequestError, apiRequest } from "@/lib/api/client";
 import { type Credentials, signInSchema } from "@/lib/auth/schemas";
 import { setServerErrors } from "@/lib/forms/server-errors";
 import type { FormResponse } from "@/lib/forms/types";
+import { clearTaskPushOnSessionChange } from "@/lib/push/client";
 import { resetSessionCache } from "@/lib/pwa/session-cache";
 import { CredentialsFields } from "./credentials-fields";
 
@@ -31,6 +32,7 @@ export function SignInForm({ next }: { next: string }) {
         method: "POST",
         body: JSON.stringify({ ...values, next }),
       });
+      await clearTaskPushOnSessionChange();
       await resetSessionCache();
       setNavigating(true);
       // A full navigation drops any prefetched pages from the previous session.

@@ -136,7 +136,6 @@ export function DashboardPage() {
           </section>
         </div>
       </div>
-      {/* TODO(PWA): Connect reminder delivery, offline state, and synchronization in later phases. */}
     </>
   );
 }
