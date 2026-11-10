@@ -12,6 +12,7 @@ export function itemFormValues(
       title: item?.title ?? "",
       description: item && "description" in item ? item.description : "",
       dueDate: item && "dueDate" in item ? item.dueDate : "",
+      reminderAt: item && "reminderAt" in item ? item.reminderAt : null,
       ...identity,
     };
   return {

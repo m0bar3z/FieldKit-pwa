@@ -54,6 +54,8 @@ export function createTask(
     ...metadata(userId),
     ...input,
     completed: input.completed ?? false,
+    reminderAt: input.reminderAt ?? null,
+    reminderRevision: 1,
   };
   memory.tasks.push(item);
   return item;
@@ -71,6 +73,8 @@ export function updateTask(
 ) {
   const item = getTask(userId, id);
   checkVersion(item, version);
+  if (input.reminderAt !== undefined && input.reminderAt !== item.reminderAt)
+    item.reminderRevision += 1;
   Object.assign(item, input);
   touch(item);
   return item;

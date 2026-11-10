@@ -20,6 +20,10 @@ demoGlobal.fieldkitDemoStore ??= {
   attachments: [],
 };
 export const memory = demoGlobal.fieldkitDemoStore;
+for (const task of memory.tasks) {
+  task.reminderAt ??= null;
+  task.reminderRevision ??= 0;
+}
 
 // Preserve existing demo data across development reloads from ISO date storage.
 function timestamp(value: number | string): number {

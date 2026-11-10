@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { formatDueDate } from "@/lib/products/presentation";
+import { formatDueDate, formatReminder } from "@/lib/products/presentation";
 import type { Task } from "@/lib/products/types";
 import { TaskDescription } from "./task-description";
 import { TaskSyncStatus } from "./task-sync-status";
@@ -66,6 +66,9 @@ export function TaskPreviewLink({
           </span>
         </div>
         <TaskDescription description={task.description} />
+        <p className="text-sm text-muted-foreground">
+          {formatReminder(task.reminderAt, timeZone)}
+        </p>
         <DialogFooter showCloseButton />
       </DialogContent>
     </Dialog>

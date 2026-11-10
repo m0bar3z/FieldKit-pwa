@@ -2,6 +2,7 @@
 
 import { FieldGroup } from "@/components/ui/field";
 import { ProductTextField } from "../forms/product-text-field";
+import { TaskReminderField } from "./task-reminder-field";
 
 export function ItemFields({
   kind,
@@ -35,8 +36,7 @@ export function ItemFields({
             maxLength={10}
             type="date"
           />
-          {/* TODO(product): Add reminder editing in the reminders feature. */}
-          {/* TODO(PWA): Schedule and deliver push reminders in the notifications phase. */}
+          <TaskReminderField id={`${prefix}-reminder`} />
         </>
       ) : (
         <ProductTextField

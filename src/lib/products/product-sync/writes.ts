@@ -106,7 +106,7 @@ async function queue(userId: string, write: Write) {
         updated: now,
         completed: false,
         group: "unscheduled",
-        reminderAt: null,
+        reminderAt: payload.reminderAt ?? null,
         attachments: [],
       };
       value = {

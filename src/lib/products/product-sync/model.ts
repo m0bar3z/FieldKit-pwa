@@ -13,6 +13,7 @@ export type TaskPayload = {
   description: string;
   dueDate: string;
   completed?: boolean;
+  reminderAt?: number | null | undefined;
 };
 export type NotePayload = { title: string; content: string };
 export type Action =

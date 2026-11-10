@@ -21,6 +21,7 @@ import { ApiRequestError, apiRequest, refreshItems } from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
 import type { FormResponse } from "@/lib/forms/types";
 import { itemFormValues } from "@/lib/products/form-values";
+import { reminderSelectionError } from "@/lib/products/reminder-time";
 import { saveItem } from "@/lib/products/save-item";
 import { type ItemFormValues, itemFormSchema } from "@/lib/products/schemas";
 import { saveTask } from "@/lib/products/task-sync";
@@ -42,6 +43,13 @@ export function EditItemDialog({ task, note }: { task?: Task; note?: Note }) {
   const submitting = useRef(false);
 
   async function handleSubmit(values: ItemFormValues) {
+    if (values.kind === "task") {
+      const error = reminderSelectionError(values.reminderAt, task?.reminderAt);
+      if (error) {
+        form.setError("reminderAt", { message: error });
+        return;
+      }
+    }
     if (submitting.current) return;
 
     submitting.current = true;

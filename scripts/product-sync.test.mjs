@@ -190,6 +190,98 @@ async function until(fn) {
 }
 const notesList = (items = []) => ({ userId: owner, items, timeZone: "UTC" });
 
+test("offline task reminders survive creation, editing, reload, completion, and acknowledgement", async () => {
+  const first = engine();
+  const reminderAt = 2000000000000;
+  await first.api.saveTask(owner, {
+    title: "Reminder",
+    description: "",
+    dueDate: "",
+    reminderAt,
+  });
+  const reload = engine({ stores: first.state.stores });
+  let item = (await reload.api.loadLocalTasks(owner)).items[0];
+  assert.equal(item.reminderAt, reminderAt);
+  await reload.api.saveTask(
+    owner,
+    {
+      title: item.title,
+      description: "Edited",
+      dueDate: "",
+      reminderAt: reminderAt + 60000,
+    },
+    item,
+  );
+  item = (await reload.api.loadLocalTasks(owner)).items[0];
+  await reload.api.setTaskCompletion(owner, item, true);
+  item = (await reload.api.loadLocalTasks(owner)).items[0];
+  assert.equal(item.reminderAt, reminderAt + 60000);
+  assert.equal(item.completed, true);
+  reload.state.online = true;
+  await reload.api.syncProducts(true, owner);
+  assert.equal(reload.state.requests[0].body.reminderAt, reminderAt + 60000);
+  assert.equal(
+    (await reload.api.loadLocalTasks(owner)).items[0].reminderAt,
+    reminderAt + 60000,
+  );
+});
+
+test("removing a reminder offline stays null after syncing, and task deletion retains its tombstone", async () => {
+  const { api, state } = engine();
+  await api.saveTask(owner, {
+    title: "Remove",
+    description: "",
+    dueDate: "",
+    reminderAt: 2000000000000,
+  });
+  state.online = true;
+  await api.syncProducts(true, owner);
+  state.online = false;
+  let item = (await api.loadLocalTasks(owner)).items[0];
+  await api.saveTask(
+    owner,
+    { title: item.title, description: "", dueDate: "", reminderAt: null },
+    item,
+  );
+  assert.equal((await api.loadLocalTasks(owner)).items[0].reminderAt, null);
+  state.online = true;
+  await api.syncProducts(true, owner);
+  item = (await api.loadLocalTasks(owner)).items[0];
+  assert.equal(item.reminderAt, null);
+  state.online = false;
+  await api.deleteTask(owner, item);
+  assert.equal((await api.loadLocalTasks(owner)).items.length, 0);
+  state.online = true;
+  await api.syncProducts(true, owner);
+  assert.equal(state.requests.at(-1).method, "DELETE");
+});
+
+test("adding a reminder during a legacy immutable upload never changes its original request", async () => {
+  const { api, state } = engine();
+  await api.saveTask(owner, { title: "Legacy", description: "", dueDate: "" });
+  const item = (await api.loadLocalTasks(owner)).items[0];
+  const attempt = await api.prepareAttempt("task", item.id, owner);
+  assert.equal(Object.hasOwn(attempt.payload, "reminderAt"), false);
+  await api.saveTask(
+    owner,
+    {
+      title: item.title,
+      description: "",
+      dueDate: "",
+      reminderAt: 2000000000000,
+    },
+    item,
+  );
+  const pending = (await api.readChanges(owner, "task"))[0].value;
+  assert.equal(pending.attempt.mutationId, attempt.mutationId);
+  assert.equal(Object.hasOwn(pending.attempt.payload, "reminderAt"), false);
+  state.online = true;
+  await api.syncProducts(true, owner);
+  await api.syncProducts(true, owner);
+  assert.equal(Object.hasOwn(state.requests[0].body, "reminderAt"), false);
+  assert.equal(state.requests[1].body.reminderAt, 2000000000000);
+});
+
 test("new offline notes can be read, edited before upload, reloaded, and synchronized once", async () => {
   const first = engine();
   await first.api.saveNote(owner, payload);

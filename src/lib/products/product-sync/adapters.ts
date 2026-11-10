@@ -24,6 +24,12 @@ export function acknowledgeItem(
       ...attempt.payload,
       ...identity,
       completed: item?.completed ?? change.task.completed,
+      reminderAt:
+        item && "reminderAt" in item
+          ? (item.reminderAt ?? null)
+          : attempt.payload.reminderAt !== undefined
+            ? attempt.payload.reminderAt
+            : change.task.reminderAt,
     };
     delete task.localOnly;
     delete task.syncStatus;
@@ -91,6 +97,10 @@ export function overlayTasks(
         : {
             ...(current ?? change.task),
             ...change.payload,
+            reminderAt:
+              change.payload.reminderAt !== undefined
+                ? change.payload.reminderAt
+                : (current ?? change.task).reminderAt,
             version: change.task.version,
             updated:
               (synced ? change.task.updated : change.updatedAt) ??

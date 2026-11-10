@@ -110,8 +110,6 @@ export function TaskDetailPage({ id }: { id: string }) {
                 <p className="mt-1 text-sm">{formatDueDate(task.dueDate)}</p>
               </div>
             </div>
-            {/* TODO(product): Allow reminders to be set, edited, and removed. */}
-            {/* TODO(PWA): Deliver reminders using push notifications later. */}
             <div className="flex items-start gap-3">
               <BellIcon className="mt-0.5 size-4 text-muted-foreground" />
               <div>

@@ -25,6 +25,7 @@ import { ApiRequestError } from "@/lib/api/client";
 import { setServerErrors } from "@/lib/forms/server-errors";
 import { itemFormValues } from "@/lib/products/form-values";
 import { saveNote } from "@/lib/products/product-sync/writes";
+import { reminderSelectionError } from "@/lib/products/reminder-time";
 import { type ItemFormValues, itemFormSchema } from "@/lib/products/schemas";
 import { saveTask } from "@/lib/products/task-sync";
 import { ProductForm } from "../forms/product-form";
@@ -44,6 +45,13 @@ export function NewItemEditor({ kind }: { kind: "task" | "note" }) {
   const [navigating, setNavigating] = useState(false);
 
   async function handleSubmit(values: ItemFormValues) {
+    if (values.kind === "task") {
+      const error = reminderSelectionError(values.reminderAt);
+      if (error) {
+        form.setError("reminderAt", { message: error });
+        return;
+      }
+    }
     if (submitting.current || navigating) return;
     submitting.current = true;
     try {

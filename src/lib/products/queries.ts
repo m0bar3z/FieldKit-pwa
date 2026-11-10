@@ -54,7 +54,7 @@ export function getTasks(userId: string, zone?: string): TasksData {
     completed: item.completed,
     dueDate: item.dueDate,
     group: taskGroup(item, today),
-    reminderAt: null,
+    reminderAt: item.reminderAt ?? null,
     attachments: attachments(userId, "task", item.id),
   }));
   return {

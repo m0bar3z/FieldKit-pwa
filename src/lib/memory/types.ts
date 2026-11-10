@@ -12,6 +12,9 @@ export type TaskRecord = ItemMetadata & {
   description: string;
   dueDate: string;
   completed: boolean;
+  reminderAt: number | null;
+  /** Changes only when the chosen reminder time changes. */
+  reminderRevision: number;
 };
 export type NoteRecord = ItemMetadata & { title: string; content: string };
 export type AttachmentRecord = ItemMetadata & {

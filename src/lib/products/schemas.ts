@@ -38,6 +38,14 @@ export const taskSchema = z.object({
     isCalendarDate,
     "Choose a valid calendar date.",
   ),
+  // Optional keeps legacy immutable upload attempts byte-for-byte compatible.
+  reminderAt: z
+    .number()
+    .int()
+    .min(0)
+    .max(8640000000000000)
+    .nullable()
+    .optional(),
 });
 export const noteSchema = z.object({
   title: productText(200, true),
