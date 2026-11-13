@@ -225,6 +225,18 @@ function engine({
       worker.dispatchEvent(event);
       return promise;
     },
+    periodicSync(tag = "fieldkit-products-periodic") {
+      const event = new Event("periodicsync");
+      let promise;
+      Object.assign(event, {
+        tag,
+        waitUntil(value) {
+          promise = value;
+        },
+      });
+      worker.dispatchEvent(event);
+      return promise;
+    },
   };
 }
 
@@ -510,6 +522,27 @@ test("background sync registration is requested when supported", async () => {
   assert.equal(registrations[0], "fieldkit-products");
 });
 
+test("periodic background sync registration is requested when supported", async () => {
+  const periodicRegistrations = [];
+  const serviceWorker = new EventTarget();
+  serviceWorker.ready = Promise.resolve({
+    periodicSync: {
+      async register(tag, options) {
+        periodicRegistrations.push({ tag, options });
+      },
+    },
+  });
+  const { api } = engine({ serviceWorker, online: true });
+  const stop = api.startTaskSync(userId);
+  await until(() => periodicRegistrations.length > 0);
+  assert.equal(periodicRegistrations[0].tag, "fieldkit-products-periodic");
+  assert.equal(
+    periodicRegistrations[0].options.minInterval,
+    12 * 60 * 60 * 1000,
+  );
+  stop();
+});
+
 test("the current shared background tag processes saved tasks", async () => {
   const page = engine();
   await page.api.saveTask(userId, payload);
@@ -519,6 +552,22 @@ test("the current shared background tag processes saved tasks", async () => {
     runtime: "worker",
   });
   await worker.backgroundSync("fieldkit-products");
+  assert.equal(worker.state.requests.length, 1);
+  assert.equal(
+    (await page.api.loadLocalTasks(userId)).items[0].syncStatus,
+    undefined,
+  );
+});
+
+test("periodic background sync processes saved tasks", async () => {
+  const page = engine();
+  await page.api.saveTask(userId, payload);
+  const worker = engine({
+    records: page.state.records,
+    online: true,
+    runtime: "worker",
+  });
+  await worker.periodicSync();
   assert.equal(worker.state.requests.length, 1);
   assert.equal(
     (await page.api.loadLocalTasks(userId)).items[0].syncStatus,

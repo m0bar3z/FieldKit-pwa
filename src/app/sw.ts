@@ -6,6 +6,7 @@ import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { ExpirationPlugin, NetworkFirst, NetworkOnly, Serwist } from "serwist";
 import {
   LEGACY_SYNC_TAGS,
+  PRODUCT_PERIODIC_SYNC_TAG,
   PRODUCT_SYNC_TAG,
 } from "@/lib/products/product-sync/background-sync";
 import { syncProductsInBackground } from "@/lib/products/product-sync/worker";
@@ -79,6 +80,12 @@ self.addEventListener("sync", (event) => {
   if (event.tag === PRODUCT_SYNC_TAG || LEGACY_SYNC_TAGS.includes(event.tag)) {
     event.waitUntil(syncProductsInBackground(self.clients));
   }
+});
+
+self.addEventListener("periodicsync", (event: Event) => {
+  const periodicEvent = event as ExtendableEvent & { tag: string };
+  if (periodicEvent.tag === PRODUCT_PERIODIC_SYNC_TAG)
+    periodicEvent.waitUntil(syncProductsInBackground(self.clients));
 });
 
 self.addEventListener("push", (event) => {

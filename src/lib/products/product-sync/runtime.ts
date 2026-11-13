@@ -5,6 +5,7 @@ import {
   LEGACY_SYNC_MESSAGES,
   PRODUCT_SYNC_CHANGED,
   requestProductBackgroundSync,
+  requestProductPeriodicSync,
 } from "./background-sync";
 import { processProductQueue } from "./engine";
 import { withProductLock } from "./locks";
@@ -116,6 +117,7 @@ export function startProductSync(userId: string) {
       };
     }
     onReconnect();
+    void requestProductPeriodicSync();
   }
   return () => {
     subscribers--;
