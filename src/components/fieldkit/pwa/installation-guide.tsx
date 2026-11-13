@@ -1,6 +1,7 @@
 "use client";
 
 import { DownloadIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,10 +22,56 @@ import {
 import { useInstalledApp } from "@/hooks/use-installed-app";
 import { installationGuides } from "@/lib/pwa/installation-guides";
 
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
+
 export function InstallationGuide() {
   const isStandalone = useInstalledApp();
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const handleInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as InstallPromptEvent);
+    };
+    const handleInstalled = () => setInstallPrompt(null);
+    window.addEventListener("beforeinstallprompt", handleInstallPrompt);
+    window.addEventListener("appinstalled", handleInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
+      window.removeEventListener("appinstalled", handleInstalled);
+    };
+  }, []);
+
+  async function install() {
+    if (!installPrompt) return;
+    const prompt = installPrompt;
+    setInstallPrompt(null);
+    await prompt.prompt();
+    if ((await prompt.userChoice).outcome === "dismissed")
+      setInstallPrompt(prompt);
+  }
 
   if (isStandalone) return null;
+
+  if (installPrompt)
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        className="min-h-11 min-w-11"
+        aria-label="Install FieldKit"
+        title="Install FieldKit"
+        onClick={() => void install()}
+      >
+        <DownloadIcon data-icon="inline-start" aria-hidden="true" />
+        <span className="hidden sm:inline">Install FieldKit</span>
+      </Button>
+    );
 
   return (
     <Dialog>
@@ -70,8 +117,9 @@ export function InstallationGuide() {
           ))}
         </div>
         <p className="text-sm text-muted-foreground">
-          Menu names vary by browser. If you opened FieldKit inside another app,
-          open it in your browser first to find the installation options.
+          Menu names vary by browser. If the install button is unavailable, use
+          the browser menu. If you opened FieldKit inside another app, open it
+          in your browser first.
         </p>
         <DialogFooter showCloseButton />
       </DialogContent>
