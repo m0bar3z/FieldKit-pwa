@@ -57,6 +57,9 @@ New offline notes can be read, edited before their first upload, and deleted fro
 their cards. They synchronize automatically using the same queue as tasks.
 Background Sync runs through the shared service worker where supported; the app
 also synchronizes while open when Background Sync is unavailable.
+Where supported, the app also requests Periodic Background Sync as a lower-
+frequency refresh hint. Browsers may deny or delay it, so it is never the only
+sync path.
 IndexedDB version 6 preserves older offline records, including numeric note IDs
 and uncertain uploads, without clearing local data. Unsaved drafts remain a future
 learning task. Optional task reminder times use the same offline queue. Opt-in

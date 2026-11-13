@@ -96,6 +96,10 @@ Web Locks serialize uploads and retry/discard across pages and workers where
 supported. Without them, durable immutable attempts and server receipts prevent
 duplicate successful mutations. Browser scheduling controls Background Sync;
 completion with all pages closed is not guaranteed.
+The app also requests Periodic Background Sync where available, using a 12-hour
+minimum interval hint. Browser permission, battery policy, and platform support
+can delay or reject it; foreground reconnect and normal Background Sync remain
+the fallback.
 
 IndexedDB version 6 migrates saved task changes, attempts, snapshots, note edits,
 and numeric offline note creations in one upgrade transaction. Missing legacy

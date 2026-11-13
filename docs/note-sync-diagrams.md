@@ -72,3 +72,6 @@ Page retries and session lookup failures back off up to 60 seconds.
 Background Sync scheduling is controlled by the browser and cannot guarantee
 completion after every page closes. Attachments and unsaved drafts do not use
 this queue. Server records and mutation receipts remain process-local demo data.
+The worker also accepts the optional `fieldkit-products-periodic` event for
+browsers that provide Periodic Background Sync, with the same foreground and
+normal Background Sync fallbacks.
